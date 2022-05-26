@@ -1,0 +1,73 @@
+https://support.mellanox.com/s/article/howto-configure-nvme-over-fabrics--nvme-of--target-offload
+
+Install MLNX OFED with your arch, OS and kernel.
+
+Our environment:
+Host(server): CentOS 7.4, kernel-4.14, x86_64
+NIC(client): CentOS 7.6, kernel-4.20, aarch
+
+
+## Host
+
+1. YOu should check the flags when installing MLNX.
+./mlnxofedinstall --bluefield --add-kernel-support --with-nvmf --force --upstream-libs --dpdk --without-fw-update
+
+2. Set num_p2p_queues module parameter when loading the nvme module.
+This module parameter defines the number of extra I/O queues that each NVMe device will try to create for peer-to-peer data transfer.
+# modprobe nvme num_p2p_queues=1
+Check if the parameter set successfully
+cat /sys/block/<nvme_device>/device/num_p2p_queues
+If not, make /etc/modprobe.d/nvme.conf and write "options nvme num_p2p_queues=1" on it
+
+dracut -f  후 reboot 하면 parameter가 1로 잘 들어가 있는 것을 확인할 수 있다. * 이게 꼭 되어야 한다.
+
+그 후로는 무난한데, 모듈(nvmet, nvmet-rdma)이 없거나 symbol이 틀렸다고 나오면 커널의 문제다.
+검색해보면 initramfs-update?가 필요하다고도 나오는데, 그 solution이 맞다.
+
+sudo ifconfig enp23s0f0 10.0.25.10/24 up
+modprobe nvmet
+modprobe nvmet-rdma
+mkdir /sys/kernel/config/nvmet/subsystems/testsubsystem
+echo 1 > /sys/kernel/config/nvmet/subsystems/testsubsystem/attr_allow_any_host
+echo 1 > /sys/kernel/config/nvmet/subsystems/testsubsystem/attr_offload
+mkdir /sys/kernel/config/nvmet/subsystems/testsubsystem/namespaces/1
+echo -n /dev/nvme0n1 > /sys/kernel/config/nvmet/subsystems/testsubsystem/namespaces/1/device_path
+echo 1 > /sys/kernel/config/nvmet/subsystems/testsubsystem/namespaces/1/enable
+mkdir /sys/kernel/config/nvmet/ports/1
+echo 4420 > /sys/kernel/config/nvmet/ports/1/addr_trsvcid
+echo 10.0.25.10 > /sys/kernel/config/nvmet/ports/1/addr_traddr
+echo "rdma" > /sys/kernel/config/nvmet/ports/1/addr_trtype
+echo "ipv4" > /sys/kernel/config/nvmet/ports/1/addr_adrfam
+ln -s /sys/kernel/config/nvmet/subsystems/testsubsystem/ /sys/kernel/config/nvmet/ports/1/subsystems/testsubsystem
+
+통째로 붙여넣어도 오류는 없다. (10.0.25.10은 BF의 nic interface 중 하나의 ip로 하면 된다.)
+
+
+이후의 스크립트는 client에서 실행해야 한다.
+
+
+## NIC
+
+YOu should check the flags when installing MLNX.
+./mlnxofedinstall --bluefield --add-kernel-support --with-nvmf --force --upstream-libs --dpdk --without-fw-update
+
+ifconfig enp3s0f0 10.0.25.100/24 up
+modprobe nvme
+modprobe nvme-rdma
+
+(nvme-cli가 없다면 받아야한다. github에서도 받을 수 있고 최신 버전을 repo에서 받을 수도 있었던 것 같다.)
+
+nvme discover -t rdma -a 10.0.25.10 -s 4420
+
+하면 서버의 nvme 정보가 나타난다. 이제 rdma connect를 하자.!
+
+nvme connect -t rdma -n testsubsystem -a 10.0.25.10 -s 4420
+
+하면 아무것도 안 뜨는게 정상이고 input/output Error 같은 게 뜨면 parameter가 잘못 들어간 것이다.
+위에 입력한 parameter를 모두 뒤져보면 틀린 것을 찾을 수 있다.
+
+정상이라면 lsblk를 쳐보면 nvme가 /dev에 인식된 것을 확인할 수 있고,
+
+원하는 곳에 mount /dev/nvme0n1p1 /ssdmnt 와 같이 마운트하면 접속할 수 있다.
+
+사족으로, sync가 안되므로 파일은 server에서 준비해놓고 client에서 mount 해야 한다.

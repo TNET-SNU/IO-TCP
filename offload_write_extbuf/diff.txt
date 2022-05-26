@@ -1,0 +1,51 @@
+14d13
+< #include "memorypool.h"
+30,31d28
+< static pool filecache_pools[MAX_CPUS]; // for fake filesystem
+< 
+192,194c189
+< 
+< 	//free(fc);
+< 	poolFree(&filecache_pools[core_id], fc);
+---
+> 	free(fc);
+232c227
+<   int fd = 0;
+---
+>   int fd;
+238,239c233
+<   // fc = calloc(1, sizeof(struct file_cache));
+<   fc = poolMalloc(&filecache_pools[cid]);
+---
+>   fc = calloc(1, sizeof(struct file_cache));
+241c235
+< 	  fprintf(stderr,"malloc() for file_cache failed\n");
+---
+> 	  TRACE_DBG("malloc() for file_cache failed\n");
+244d237
+< 
+248c241
+<   // fd = fd_per_core[cid];
+---
+>   fd = fd_per_core[cid];
+256c249
+<   // lseek64(fd, 512000 * fd_file_count[cid], SEEK_SET);
+---
+>   lseek64(fd, 512000 * fd_file_count[cid], SEEK_SET);
+265d257
+<   //fprintf(stderr,"(%d) inserted (fid: %u)\n", cid, fid);
+282c274
+< 	  fprintf(stderr,"(%d) fc NOT FOUND for closing (fid: %u)\n", cid, fid);
+---
+> 	  TRACE_ERROR("(%d) fc NOT FOUND for closing (fid: %u)\n", cid, fid);
+1132c1124
+< 		/* if(pread(fc->fc_fd, tmpbuf, flen-(flen%512), foff-(foff%512)) < 0) {
+---
+> 		if(pread(fc->fc_fd, tmpbuf, flen-(flen%512), foff-(foff%512)) < 0) {
+1134c1126
+< 		} */
+---
+> 		}
+1417,1418d1408
+<         poolInitialize(&filecache_pools[core_id], sizeof(struct file_cache), 100000);
+< 
