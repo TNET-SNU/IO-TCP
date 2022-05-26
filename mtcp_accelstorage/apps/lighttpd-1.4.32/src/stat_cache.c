@@ -14,6 +14,11 @@
 #include <fcntl.h>
 #include <assert.h>
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+#include "settings.h"
+
 #ifdef HAVE_ATTR_ATTRIBUTES_H
 # include <attr/attributes.h>
 #endif
@@ -40,6 +45,13 @@
 #if 0
 /* enables debug code for testing if all nodes in the stat-cache as accessable */
 #define DEBUG_STAT_CACHE
+#endif
+
+#if defined HAVE_LIBMTCP && (HAVE_LIBPSIO | HAVE_LIBDPDK | HAVE_NETMAP)
+# define USE_MTCP
+#include <sys/socket.h>
+#include <mtcp_api.h>
+#include <eventpoll.h>
 #endif
 
 /*
@@ -481,9 +493,15 @@ handler_t stat_cache_get_entry(server *srv, connection *con, buffer *name, stat_
 	 * - stat() if regular file + open() to see if we can read from it is better
 	 *
 	 * */
+#ifdef USE_MTCP
+	if (-1 == mtcp_offload_stat(srv->mctx, name->ptr, &st)) {
+		return HANDLER_ERROR;
+	}
+#else
 	if (-1 == stat(name->ptr, &st)) {
 		return HANDLER_ERROR;
 	}
+#endif
 
 
 	if (S_ISREG(st.st_mode)) {

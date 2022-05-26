@@ -5,6 +5,7 @@
 #include "tcp_stream.h"
 
 #define NUM_BINS_FLOWS 		(131072)     /* 132 K entries per thread*/
+#define NUM_BINS_FnameStat (131072)     /* 132 K entries per thread*/
 #define NUM_BINS_LISTENERS	(1024)	     /* assuming that chaining won't happen excessively */
 #define TCP_AR_CNT 		(3)
 
@@ -43,6 +44,9 @@ void DestroyHashtable(struct hashtable *ht);
 int StreamHTInsert(struct hashtable *ht, void *);
 void* StreamHTRemove(struct hashtable *ht, void *);
 void *StreamHTSearch(struct hashtable *ht, const void *);
+int FnameStatHTInsert(struct hashtable *ht, void *);
+void* FnameStatHTRemove(struct hashtable *ht, void *);
+void *FnameStatHTSearch(struct hashtable *ht, const void *);
 unsigned int HashListener(const void *hbo_port_ptr);
 int EqualListener(const void *hbo_port_ptr1, const void *hbo_port_ptr2);
 int ListenerHTInsert(struct hashtable *ht, void *);

@@ -34,6 +34,16 @@ struct offload_vars
 	struct stat sb;
 };
 
+struct mtcp_filename_stat
+{
+	TAILQ_ENTRY(mtcp_filename_stat) he_link;	/* hash table entry link */
+	char offload_fn[OFFLOAD_NAME_LIMIT];
+	uint64_t file_len;
+#if WHOLE_FSTAT
+	struct stat sb;
+#endif
+};
+
 struct offload_buffer
 {
 	TAILQ_ENTRY(offload_buffer) offload_buffer_link;
@@ -270,6 +280,12 @@ HashFlow(const void *flow);
 
 int
 EqualFlow(const void *flow1, const void *flow2);
+
+unsigned int
+HashFnameStat(const void *mfs);
+
+int
+EqualFnameStat(const void *mfs1, const void *mfs2);
 
 #if USE_CCP 
 /*----------------------------------------------------------------------------*/

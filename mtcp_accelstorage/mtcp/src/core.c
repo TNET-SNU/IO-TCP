@@ -1154,6 +1154,11 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 		perror("pthread_mutex_init of offload_cleanup_lock");
 #endif
 	}
+	mtcp->fnamestat_table = CreateHashtable(HashFnameStat, EqualFnameStat, NUM_BINS_FnameStat);
+	if (!mtcp->fnamestat_table) {
+		CTRACE_ERROR("Failed to allocate fnamestat_table table.\n");
+		return NULL;
+	}
 	
 	return mtcp;
 }

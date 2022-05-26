@@ -25,7 +25,7 @@ static DiskIOSlave *g_dslaves[MAX_CPUS];
 /* current disk slave index per core */
 static int g_slaveIdx[MAX_CPUS];
 
-#ifdef NO_FS_PERFTEST
+#if NO_FS_PERFTEST
 static int fd_per_core[MAX_CPUS]; // for fake filesystem
 static int fd_file_count[MAX_CPUS] = {0}; // for fake filesystem
 #endif
@@ -194,6 +194,10 @@ CloseFileCache(uint16_t core_id, struct file_cache *fc)
 	fc_ht_remove(file_cache_ht[core_id], fc);
 
 	//free(fc);
+	
+	if (fc->fc_stat) {
+		free(fc->fc_stat);
+	}
 	//rte_mempool_put(fc_pool[core_id], fc);
 	poolFree(&filecache_pools[core_id], fc);
 }
@@ -246,14 +250,15 @@ OpenFileForOffload(int cid, char *file_name, uint32_t fid, uint8_t *haddr)
   }*/
   fc = poolMalloc(&filecache_pools[cid]);
   if (fc == NULL) {
-	  fprintf(stderr,"malloc() for file_cache failed\n");
-	  exit(-1);
+	fprintf(stderr,"malloc() for file_cache failed\n");
+	//   exit(-1);
+	return 0;
   }
 
   rte_memcpy(fc->fc_haddr, haddr, sizeof(fc->fc_haddr));
   
   /* open the file with direct IO */
-#ifdef NO_FS_PERFTEST
+#if NO_FS_PERFTEST
   fd = fd_per_core[cid];
   lseek64(fd, 512000 * fd_file_count[cid], SEEK_SET);
   fd_file_count[cid]++;
@@ -263,16 +268,24 @@ OpenFileForOffload(int cid, char *file_name, uint32_t fid, uint8_t *haddr)
   fd = open(file_name, O_RDONLY | O_DIRECT);
 #endif
   if (fd < 0) {
-	  TRACE_ERROR("open() failed: %s errno: %d\n", file_name, errno);
-	  exit(-1);
-          // return 0;
+	TRACE_ERROR("open() failed: %s errno: %d\n", file_name, errno);
+	//   exit(-1);
+	return 0;
   } 
   TRACE_DBG("(%d) Open file %s, fd: %d, fid: %u\n",
 			rte_lcore_id(), file_name, fd, fid);
-#ifdef NO_FS_PERFTEST
+#if NO_FS_PERFTEST
   fc->fc_fileSize = 512000;
-#else
+#elif INDEPENDENT_FSTAT
   fc->fc_fileSize = lseek64(fd, 0, SEEK_END);
+#elif NICTOHOST_FSTAT
+  fc->fc_stat = (struct stat*)malloc(sizeof(struct stat));
+  if (fc->fc_stat == NULL) {
+	TRACE_ERROR("malloc() failed\n");
+	exit(-1);
+  }
+  fstat(fd, fc->fc_stat);
+  fc->fc_fileSize = fc->fc_stat->st_size;
 #endif
   fc->fc_fd    = fd;
   fc->fc_fid   = fid;
@@ -576,64 +589,75 @@ SendEchoPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int flen)
 	m->l3_len    = sizeof(struct rte_ipv4_hdr);
 	m->l4_len    = GET_TCP_HEADER_LEN(tcph);
 }
-// /*---------------------------------------------------------------------------*/
-// static void
-// SendOpenEchoPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int offload_fid,
-// 			int offload_open_status)
-// {
-// 	struct rte_mbuf *m;
-// 	struct rte_ether_hdr *ethh;
-// 	struct rte_ipv4_hdr *iph;
-// 	struct rte_tcp_hdr *tcph;
-// 	uint32_t tmp_addr;
-// 	uint16_t tmp_port;	
-// 	uint8_t tmp_eth_addr[RTE_ETHER_ADDR_LEN];
-// 	char p[128];
-// 	int p_len;
-// 	int hdrlen;
+/*---------------------------------------------------------------------------*/
+static void
+SendOpenEchoPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int offload_fid,
+			int offload_open_status)
+{
+	struct rte_mbuf *m;
+	struct rte_ether_hdr *ethh;
+	struct rte_ipv4_hdr *iph;
+	struct rte_tcp_hdr *tcph;
+	uint32_t tmp_addr;
+	uint16_t tmp_port;	
+	uint8_t tmp_eth_addr[RTE_ETHER_ADDR_LEN];
+	char p[128];
+	int p_len;
+	int hdrlen;
+	struct file_cache *fc;
 
-//  	ethh = (struct rte_ether_hdr *) phdr;
-// 	assert(ethh != NULL);
+ 	ethh = (struct rte_ether_hdr *) phdr;
+	assert(ethh != NULL);
 	
-// 	/* set up some parameters */
-// 	iph  = (struct rte_ipv4_hdr *)(ethh + 1);
-// 	tcph = (struct rte_tcp_hdr *)(iph + 1);
+	/* set up some parameters */
+	iph  = (struct rte_ipv4_hdr *)(ethh + 1);
+	tcph = (struct rte_tcp_hdr *)(iph + 1);
 
-// 	hdrlen = ETHERNET_HEADER_LEN + IP_HEADER_LEN + (GET_TCP_HEADER_LEN(tcph));
+	hdrlen = ETHERNET_HEADER_LEN + IP_HEADER_LEN + (GET_TCP_HEADER_LEN(tcph));
 	
-// 	p_len = snprintf(p, 128, "OPEN %d %d", offload_fid, offload_open_status);
-// 	m = get_wptr(core_id, port, hdrlen + p_len);
-// 	ethh = (struct rte_ether_hdr *)rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
-// 	rte_memcpy(ethh, phdr, hdrlen);
-// 	iph = (struct rte_ipv4_hdr *)(ethh + 1);
-// 	tcph = (struct rte_tcp_hdr *)(iph + 1);
+	fc = fc_ht_search(file_cache_ht[core_id], offload_fid);
+
+#if WHOLE_FSTAT
+	p_len = snprintf(p, 128, "OPEN %d %d ", offload_fid, offload_open_status);
+	memcpy(p + p_len, fc->fc_stat, sizeof(struct stat));
+	p_len += sizeof(struct stat);
+#else
+	p_len = snprintf(p, 128, "OPEN %d %d %d", offload_fid, offload_open_status, fc->fc_stat->st_size);
+#endif
+
+	m = get_wptr(core_id, port, hdrlen + p_len);
+	ethh = (struct rte_ether_hdr *)rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+	rte_memcpy(ethh, phdr, hdrlen);
+	iph = (struct rte_ipv4_hdr *)(ethh + 1);
+	tcph = (struct rte_tcp_hdr *)(iph + 1);
 	
-// 	/* swap ethernet addrs */
-// 	rte_memcpy(tmp_eth_addr, ethh->d_addr.addr_bytes, sizeof(tmp_eth_addr));
-// 	rte_memcpy(ethh->d_addr.addr_bytes,
-// 			   ethh->s_addr.addr_bytes, sizeof(tmp_eth_addr));
-// 	rte_memcpy(ethh->s_addr.addr_bytes, tmp_eth_addr, sizeof(tmp_eth_addr));
+	/* swap ethernet addrs */
+	rte_memcpy(tmp_eth_addr, ethh->d_addr.addr_bytes, sizeof(tmp_eth_addr));
+	rte_memcpy(ethh->d_addr.addr_bytes,
+			   ethh->s_addr.addr_bytes, sizeof(tmp_eth_addr));
+	rte_memcpy(ethh->s_addr.addr_bytes, tmp_eth_addr, sizeof(tmp_eth_addr));
 
-// 	/* mark it special */
-// 	iph->type_of_service = 4;
-// 	iph->total_length = htons(hdrlen + p_len - ETHERNET_HEADER_LEN);
+	/* mark it special */
+	iph->type_of_service = 4;
+	// fprintf(stderr, "[%d] hdrlen %d p_len %d sizeof(struct stat) %d \n",__LINE__, hdrlen, p_len, sizeof(struct stat));
+	iph->total_length = htons(hdrlen + p_len - ETHERNET_HEADER_LEN);
 
-// 	/* swap IP addrs */
-// 	tmp_addr = iph->src_addr;
-// 	iph->src_addr = iph->dst_addr;
-// 	iph->dst_addr = tmp_addr;
+	/* swap IP addrs */
+	tmp_addr = iph->src_addr;
+	iph->src_addr = iph->dst_addr;
+	iph->dst_addr = tmp_addr;
 
-// 	/* swap port numbers */
-// 	tmp_port = tcph->src_port;
-// 	tcph->src_port = tcph->dst_port;
-// 	tcph->dst_port = tmp_port;
+	/* swap port numbers */
+	tmp_port = tcph->src_port;
+	tcph->src_port = tcph->dst_port;
+	tcph->dst_port = tmp_port;
 
-// 	rte_memcpy((uint8_t *)ethh + hdrlen, p,  p_len);
+	rte_memcpy((uint8_t *)ethh + hdrlen, p, p_len);
 
-// 	m->l2_len    = sizeof(struct rte_ether_hdr);
-// 	m->l3_len    = sizeof(struct rte_ipv4_hdr);
-// 	m->l4_len    = GET_TCP_HEADER_LEN(tcph);
-// }
+	m->l2_len    = sizeof(struct rte_ether_hdr);
+	m->l3_len    = sizeof(struct rte_ipv4_hdr);
+	m->l4_len    = GET_TCP_HEADER_LEN(tcph);
+}
 /*---------------------------------------------------------------------------*/
 static void
 UpdateTimestampOption(uint8_t *topt, int totlen, uint32_t ts_diff)
@@ -1074,7 +1098,7 @@ ProcessPacket(uint16_t core_id, uint16_t port, uint8_t *pktbuf, int totlen)
 	  }
   }
   else if (memcmp(p, "OPEN", 4) == 0) {
-#ifdef NO_FS_PERFTEST
+#if NO_FS_PERFTEST
 	  assert(false);
 #endif
 	  if (sscanf(p + 4, "%u %s %hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
@@ -1096,8 +1120,10 @@ ProcessPacket(uint16_t core_id, uint16_t port, uint8_t *pktbuf, int totlen)
 					((ntohl(iph->dst_addr) >> 8) & 0xff),
 					((ntohl(iph->dst_addr)) & 0xff),
 					ntohs(tcph->dst_port));
-		OpenFileForOffload(core_id, file_name, fid, haddr);
-		//SendOpenEchoPacket(core_id, port, pktbuf, fid, ret);
+		ret = OpenFileForOffload(core_id, file_name, fid, haddr);
+#if NICTOHOST_FSTAT
+		SendOpenEchoPacket(core_id, port, pktbuf, fid, ret);
+#endif
 
 		return; /* we're done */
 	  }
@@ -1132,7 +1158,7 @@ ProcessPacket(uint16_t core_id, uint16_t port, uint8_t *pktbuf, int totlen)
   
   /* find the file cache entry */
   fc = fc_ht_search(file_cache_ht[core_id], fid);
-#ifdef NO_FS_PERFTEST
+#if NO_FS_PERFTEST
   if (fc == NULL) {
     haddr[0] = 0x98;
     haddr[1] = 0x03;
@@ -1469,7 +1495,7 @@ int forward_main_loop(__attribute__((unused)) void *arg)
 	core_id = rte_lcore_id();
 	thread_local_init(core_id);
 
-#ifdef NO_FS_PERFTEST
+#if NO_FS_PERFTEST
 #define NUM_NVME 4
 	char file_name[100];
 	strcpy(file_name, "/dev/nvme0n1");

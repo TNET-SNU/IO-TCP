@@ -168,7 +168,10 @@ mtcp_offload_write(mctx_t mctx, int sockid, int offload_fid,
 									 off_t *offset, size_t len);
 
 int
-mtcp_offload_fstat(mctx_t mctx, int sockid, int offload_fid,
+mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,
+					   struct stat *buf);
+int
+mtcp_offload_stat(mctx_t mctx, const char *file_name,
 					   struct stat *buf);
 
 #endif /* MTCP_API_H */

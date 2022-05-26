@@ -123,6 +123,13 @@
 #define OFFLOAD_META_PAYLOAD_LIMIT		512
 #endif
 /*----------------------------------------------------------------------------*/
+/* Offload Options */
+#define NO_FS_PERFTEST FALSE
+#define NICTOHOST_FSTAT TRUE
+#define WHOLE_FSTAT FALSE
+#define HOSTTONIC_FSTAT FALSE // Not Implemented
+#define INDEPENDENT_FSTAT FALSE
+/*----------------------------------------------------------------------------*/
 struct eth_table
 {
 	char dev_name[128];
@@ -330,6 +337,7 @@ struct mtcp_manager
 #else
 	pthread_mutex_t offload_cleanup_lock;
 #endif
+	struct hashtable *fnamestat_table;
 };
 /*----------------------------------------------------------------------------*/
 typedef struct mtcp_manager* mtcp_manager_t;

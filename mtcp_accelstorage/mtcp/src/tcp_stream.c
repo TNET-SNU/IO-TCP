@@ -106,6 +106,36 @@ EqualFlow(const void *f1, const void *f2)
 			flow1->daddr == flow2->daddr &&
 			flow1->dport == flow2->dport);
 }
+/*---------------------------------------------------------------------------*/
+unsigned int
+HashFnameStat(const void *mfs)
+{
+	struct mtcp_filename_stat *mtcp_filename_stat = (struct mtcp_filename_stat *)mfs;
+	unsigned int hash, i;
+	char *key = (char *)&mtcp_filename_stat->offload_fn;
+
+	hash = i = 0;
+	while (key[i] != '\0') {
+		hash += key[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+		i++;
+	}
+	hash += (hash << 3);
+	hash ^= (hash >> 11);
+	hash += (hash << 15);
+
+	return hash & (NUM_BINS_FnameStat - 1);
+}
+/*---------------------------------------------------------------------------*/
+int
+EqualFnameStat(const void *mfs1, const void *mfs2)
+{
+	struct mtcp_filename_stat *mtcp_filename_stat1 = (struct mtcp_filename_stat *)mfs1;
+	struct mtcp_filename_stat *mtcp_filename_stat2 = (struct mtcp_filename_stat *)mfs2;
+
+	return (strcmp(mtcp_filename_stat1->offload_fn, mtcp_filename_stat2->offload_fn) == 0);
+}
 
 #if USE_CCP
 /*---------------------------------------------------------------------------*/
@@ -597,6 +627,7 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 
 	/* remove from flow hash table */
 	StreamHTRemove(mtcp->tcp_flow_table, stream);
+	
 	stream->on_hash_table = FALSE;
 	
 	mtcp->flow_cnt--;

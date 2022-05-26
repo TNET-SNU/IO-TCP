@@ -1209,8 +1209,7 @@ WriteTCPOffloadFileList(mtcp_manager_t mtcp, struct mtcp_sender *sender,
 					"OPEN %u %s %02x:%02x:%02x:%02x:%02x:%02x",
 		 			ov->fid, ov->offload_fn, haddr[0], haddr[1], 
 					haddr[2], haddr[3], haddr[4], haddr[5]);
-//#define NO_FS_PERFTEST
-#ifndef NO_FS_PERFTEST
+#if !NO_FS_PERFTEST
 				ret = SendOffloadMetaPacket(mtcp, cur_stream,
 									payload, payloadlen);
 				if (ret < 0) {
@@ -1220,8 +1219,8 @@ WriteTCPOffloadFileList(mtcp_manager_t mtcp, struct mtcp_sender *sender,
 					continue;
 				}
 #else
-                                (void)(ret);
-                                (void)(payloadlen);
+				(void)(ret);
+				(void)(payloadlen);
 #endif
 
 				ov->offload_ready = TRUE;

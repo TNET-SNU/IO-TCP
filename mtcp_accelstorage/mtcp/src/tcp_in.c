@@ -1499,6 +1499,9 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 	tcp_stream s_stream;
 	tcp_stream *cur_stream = NULL;
 	char p[128];
+	int offload_fid, offload_open_status, offload_fsize, stat_offset;
+	struct offload_vars *ov, *_o;
+	struct mtcp_filename_stat mfs;
 
 	memcpy(p, payload, payloadlen);
 
@@ -1512,7 +1515,46 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 	}
 
 	if (memcmp(p, "OPEN", 4) == 0) {
+#if WHOLE_FSTAT
 		/* TODO: Parse OPEN echo packet (either OPEN failed or succeeded) */
+		if (!sscanf(p + 4, "%d %d %n", &offload_fid, &offload_open_status, &stat_offset) == 1) {
+			TRACE_ERROR("Received weird open echo from NIC %s (%d)\n", p, payloadlen);
+			return FALSE;
+		}
+		if (payloadlen != 4 + stat_offset + sizeof(struct stat)) {
+			TRACE_ERROR("Received weird open echo from NIC %s (%d, %d, %d)\n", p, stat_offset, payloadlen, (int)sizeof(struct stat));
+			return FALSE;
+		}
+#else
+		if (!sscanf(p + 4, "%d %d %d%n", &offload_fid, &offload_open_status, &offload_fsize, &stat_offset) == 1) {
+			TRACE_ERROR("Received weird open echo from NIC %s (%d)\n", p, payloadlen);
+			return FALSE;
+		}
+#endif
+		if (offload_open_status != 1) {
+			TRACE_ERROR("Failed to open file at NIC (fid:%d)\n", offload_fid);
+			return FALSE;
+		}
+		ov = NULL;
+		SBUF_LOCK(&cur_stream->sndvar->write_lock);
+		TAILQ_FOREACH(_o, &cur_stream->sndvar->offload_vars_list, offload_vars_link) {
+			if (_o->fid == offload_fid) {
+				ov = _o;
+				break;
+			}
+		}
+#if WHOLE_FSTAT
+		memcpy(&ov->sb, &p + 4 + stat_offset, sizeof(struct stat));
+		offload_fsize = ov->sb.st_size;
+#else
+		ov->sb.st_size = (off_t)offload_fsize;
+#endif
+		ov->file_len = (uint64_t)offload_fsize;
+		SBUF_UNLOCK(&cur_stream->sndvar->write_lock);
+		strcpy(mfs.offload_fn, ov->offload_fn);
+		mfs.file_len = (uint64_t)offload_fsize;
+		if (FnameStatHTInsert(mtcp->fnamestat_table, &mfs) < 0)
+			return FALSE;
 		return TRUE;
 	} else if (memcmp(p, "SEND", 4) == 0) {
 		cur_stream->last_active_ts = cur_ts;

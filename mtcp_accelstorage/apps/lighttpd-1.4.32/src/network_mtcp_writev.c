@@ -630,7 +630,6 @@ int network_write_chunkqueue_mtcp_offload_write(server *srv, connection *con, in
 
 			if (c->file.fd < 0)
 			{
-
 				if (-1 == (c->file.fd = mtcp_offload_open(srv->mctx, fd, c->file.name->ptr)))
 				{
 					log_error_write(srv, __FILE__, __LINE__, "ss", "offload open failed: ", strerror(errno));
@@ -656,6 +655,24 @@ int network_write_chunkqueue_mtcp_offload_write(server *srv, connection *con, in
 
 					return -1;
 				}
+			} else if (r == 0) {
+				int oerrno = errno;
+				/* We got an event to write but we wrote nothing
+				 *
+				 * - the file shrinked -> error
+				 * - the remote side closed inbetween -> remote-close */
+				if (HANDLER_ERROR == stat_cache_get_entry(srv, con, c->file.name, &sce)) {
+					/* file is gone ? */
+					return -1;
+				}
+				if (offset > sce->st.st_size) {
+					/* file shrinked, close the connection */
+					errno = oerrno;
+
+					return -1;
+				}
+				errno = oerrno;
+				return -2;
 			}
 
 			cq->bytes_out += r;
