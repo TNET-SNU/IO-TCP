@@ -516,7 +516,11 @@ static int connection_handle_write_prepare(server *srv, connection *con) {
 			if (HANDLER_ERROR != stat_cache_get_entry(srv, con, con->physical.path, &sce)) {
 				con->file_finished = 1;
 
-				http_chunk_append_file(srv, con, con->physical.path, 0, sce->st.st_size);
+				if (srv->backend == NETWORK_BACKEND_MTCP_OFFLOAD_WRITE) {
+					http_chunk_append_file_mtcpoffload(srv, con, con->physical.path, con->filefd, 0, sce->st.st_size);
+				} else {
+					http_chunk_append_file(srv, con, con->physical.path, 0, sce->st.st_size);
+				}
 				response_header_overwrite(srv, con, CONST_STR_LEN("Content-Type"), CONST_BUF_LEN(sce->content_type));
 			}
 		}
@@ -801,6 +805,8 @@ int connection_reset(server *srv, connection *con) {
 
 	con->is_readable = 1;
 	con->is_writable = 1;
+	con->is_fileopened = 0;
+	
 	con->http_status = 0;
 	con->file_finished = 0;
 	con->file_started = 0;
@@ -1213,6 +1219,10 @@ static handler_t connection_handle_fdevent(server *srv, void *context, int reven
 			con->is_readable = 1;
 			con->is_writable = 1;
 		}
+		if (revents & FDEVENT_MTCPOFFOPEN) {
+			con->is_fileopened = 1;
+			fprintf(stderr,"[%d] connection_handle_fdevent\n",__LINE__);
+		}
 	} else {
 		if (revents & FDEVENT_IN) {
 			con->is_readable = 1;
@@ -1221,10 +1231,14 @@ static handler_t connection_handle_fdevent(server *srv, void *context, int reven
 			con->is_writable = 1;
 			/* we don't need the event twice */
 		}
+		if (revents & FDEVENT_MTCPOFFOPEN) {
+			con->is_fileopened = 1;
+			fprintf(stderr,"[%d] connection_handle_fdevent\n",__LINE__);
+		}
 	}
 
 
-	if (revents & ~(FDEVENT_IN | FDEVENT_OUT)) {
+	if (revents & ~(FDEVENT_IN | FDEVENT_OUT | FDEVENT_MTCPOFFOPEN)) {
 		/* looks like an error */
 
 		/* FIXME: revents = 0x19 still means that we should read from the queue */
@@ -1470,13 +1484,34 @@ int connection_state_machine(server *srv, connection *con) {
 			 *
 			 *
 			 */
+			 
+			r = http_response_prepare_parsing(srv, con);
+			if (r == HANDLER_GO_ON) {
+				if (srv->backend == NETWORK_BACKEND_MTCP_OFFLOAD_WRITE) {
+					if (con->is_fileopened == 0) {
+						// network_write_chunkqueue_mtcp_offload_open(srv, con);
+						if (-1 == (con->filefd = mtcp_offload_open(srv->mctx, con->fd, con->physical.path->ptr)))
+						{
+							log_error_write(srv, __FILE__, __LINE__, "ss", "offload open failed: ", strerror(errno));
+							return -1;
+						}
+						connection_set_state(srv, con, CON_STATE_OFFOPENWAIT);
+						fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+						fdevent_event_set(srv->ev, &(con->fde_ndx), con->fd, FDEVENT_MTCPOFFOPEN);
+						break;
+					}
+				}
+			}
 
 			if (srv->srvconf.log_state_handling) {
 				log_error_write(srv, __FILE__, __LINE__, "sds",
 						"state for fd", con->fd, connection_get_state(con->state));
 			}
 
-			switch (r = http_response_prepare(srv, con)) {
+			if (r == HANDLER_GO_ON) {
+				r = http_response_prepare_filecheck(srv, con);
+			}
+			switch (r) {
 			case HANDLER_FINISHED:
 				if (con->mode == DIRECT) {
 					if (con->http_status == 404 ||
@@ -1516,8 +1551,8 @@ int connection_state_machine(server *srv, connection *con) {
 				}
 				if (con->http_status == 0) con->http_status = 200;
 
-				/* we have something to send, go on */
 				connection_set_state(srv, con, CON_STATE_RESPONSE_START);
+				/* we have something to send, go on */
 				break;
 			case HANDLER_WAIT_FOR_FD:
 				srv->want_fds++;
@@ -1544,6 +1579,13 @@ int connection_state_machine(server *srv, connection *con) {
 			}
 
 			break;
+		case CON_STATE_OFFOPENWAIT:
+			fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+			if (con->is_fileopened) {
+				connection_set_state(srv, con, CON_STATE_RESPONSE_START);
+				fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+			}
+			break;
 		case CON_STATE_RESPONSE_START:
 			/*
 			 * the decision is done
@@ -1561,9 +1603,7 @@ int connection_state_machine(server *srv, connection *con) {
 
 				break;
 			}
-
 			connection_set_state(srv, con, CON_STATE_WRITE);
-			break;
 		case CON_STATE_RESPONSE_END: /* transient */
 			/* log the request */
 

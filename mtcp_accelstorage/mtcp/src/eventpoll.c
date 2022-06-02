@@ -19,7 +19,7 @@
 #define SPIN_THRESH 10000000
 
 /*----------------------------------------------------------------------------*/
-char *event_str[] = {"NONE", "IN", "PRI", "OUT", "ERR", "HUP", "RDHUP"};
+char *event_str[] = {"NONE", "IN", "PRI", "OUT", "ERR", "HUP", "RDHUP", "OFFOPEN"};
 /*----------------------------------------------------------------------------*/
 char * 
 EventToString(uint32_t event)
@@ -45,6 +45,9 @@ EventToString(uint32_t event)
 			break;
 		case MTCP_EPOLLRDHUP:
 			return event_str[6];
+			break;
+		case MTCP_EPOLLOFFOPEN:
+			return event_str[7];
 			break;
 		default:
 			assert(0);
@@ -278,28 +281,33 @@ mtcp_epoll_ctl(mctx_t mctx, int epid,
 		return -1;
 	}
 
+	fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 	if (epid < 0 || epid >= CONFIG.max_concurrency) {
 		TRACE_API("Epoll id %d out of range.\n", epid);
 		errno = EBADF;
 		return -1;
 	}
 
+	fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
+	fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 	if (mtcp->smap[epid].socktype == MTCP_SOCK_UNUSED) {
 		errno = EBADF;
 		return -1;
 	}
 
+	fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 	if (mtcp->smap[epid].socktype != MTCP_SOCK_EPOLL) {
 		errno = EINVAL;
 		return -1;
 	}
 
+	fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 	ep = mtcp->smap[epid].ep;
 	if (!ep || (!event && op != MTCP_EPOLL_CTL_DEL)) {
 		errno = EINVAL;
@@ -307,8 +315,11 @@ mtcp_epoll_ctl(mctx_t mctx, int epid,
 	}
 	socket = &mtcp->smap[sockid];
 
+	fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 	if (op == MTCP_EPOLL_CTL_ADD) {
+		fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 		if (socket->epoll) {
+			fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 			errno = EEXIST;
 			return -1;
 		}
@@ -319,6 +330,10 @@ mtcp_epoll_ctl(mctx_t mctx, int epid,
 		socket->ep_data = event->data;
 		socket->epoll = events;
 
+		fprintf(stderr,"Adding epoll socket %d(type %d) ET: %u, IN: %u, OUT: %u, OFFOPEN: %u\n", 
+				socket->id, socket->socktype, socket->epoll & MTCP_EPOLLET, 
+				socket->epoll & MTCP_EPOLLIN, socket->epoll & MTCP_EPOLLOUT,
+				socket->epoll & MTCP_EPOLLOFFOPEN);
 		TRACE_EPOLL("Adding epoll socket %d(type %d) ET: %u, IN: %u, OUT: %u\n", 
 				socket->id, socket->socktype, socket->epoll & MTCP_EPOLLET, 
 				socket->epoll & MTCP_EPOLLIN, socket->epoll & MTCP_EPOLLOUT);
@@ -330,6 +345,7 @@ mtcp_epoll_ctl(mctx_t mctx, int epid,
 		}
 
 	} else if (op == MTCP_EPOLL_CTL_MOD) {
+		fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 		if (!socket->epoll) {
 			pthread_mutex_unlock(&ep->epoll_lock);
 			errno = ENOENT;
@@ -341,6 +357,10 @@ mtcp_epoll_ctl(mctx_t mctx, int epid,
 		socket->ep_data = event->data;
 		socket->epoll = events;
 
+		fprintf(stderr,"Adding epoll socket %d(type %d) ET: %u, IN: %u, OUT: %u, OFFOPEN: %u\n", 
+				socket->id, socket->socktype, socket->epoll & MTCP_EPOLLET, 
+				socket->epoll & MTCP_EPOLLIN, socket->epoll & MTCP_EPOLLOUT,
+				socket->epoll & MTCP_EPOLLOFFOPEN);
 		if (socket->socktype == MTCP_SOCK_STREAM) {
 			RaisePendingStreamEvents(mtcp, ep, socket);
 		} else if (socket->socktype == MTCP_SOCK_PIPE) {
@@ -348,6 +368,7 @@ mtcp_epoll_ctl(mctx_t mctx, int epid,
 		}
 
 	} else if (op == MTCP_EPOLL_CTL_DEL) {
+		fprintf(stderr, "[%d] mtcp_epoll_ctl \n", __LINE__);
 		if (!socket->epoll) {
 			errno = ENOENT;
 			return -1;

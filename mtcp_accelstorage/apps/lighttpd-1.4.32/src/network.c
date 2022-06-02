@@ -581,19 +581,6 @@ network_close(server *srv) {
 
 	return 0;
 }
-/*----------------------------------------------------------------------------*/
-typedef enum {
-	NETWORK_BACKEND_UNSET,
-	NETWORK_BACKEND_WRITE,
-	NETWORK_BACKEND_WRITEV,
-	NETWORK_BACKEND_LINUX_SENDFILE,
-	NETWORK_BACKEND_FREEBSD_SENDFILE,
-	NETWORK_BACKEND_SOLARIS_SENDFILEV,
-#if defined USE_MTCP
-	NETWORK_BACKEND_MTCP,
-	NETWORK_BACKEND_MTCP_OFFLOAD_WRITE
-#endif
-} network_backend_t;
 
 int 
 network_init(server *srv) {
@@ -915,7 +902,7 @@ network_init(server *srv) {
 			return -1;
 		}
 	}
-
+	srv->backend = backend;
 	switch(backend) {
 	case NETWORK_BACKEND_WRITE:
 		srv->network_backend_write = network_write_chunkqueue_write;

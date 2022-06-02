@@ -31,7 +31,7 @@ struct offload_vars
 	char offload_fn[OFFLOAD_NAME_LIMIT];
 	uint64_t file_len;
 
-	struct stat sb;
+	struct mtcp_stat sb;
 };
 
 struct mtcp_filename_stat
@@ -40,7 +40,7 @@ struct mtcp_filename_stat
 	char offload_fn[OFFLOAD_NAME_LIMIT];
 	uint64_t file_len;
 #if WHOLE_FSTAT
-	struct stat sb;
+	struct mtcp_stat sb;
 #endif
 };
 
@@ -303,6 +303,9 @@ AddEpollEvent(struct mtcp_epoll *ep,
 
 extern inline void 
 RaiseReadEvent(mtcp_manager_t mtcp, tcp_stream *stream);
+
+extern inline void 
+RaiseOffloadOpenEvent(mtcp_manager_t mtcp, tcp_stream *stream);
 
 extern inline void 
 RaiseWriteEvent(mtcp_manager_t mtcp, tcp_stream *stream);

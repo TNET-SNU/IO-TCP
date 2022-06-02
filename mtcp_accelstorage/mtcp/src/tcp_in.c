@@ -1516,13 +1516,14 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 
 	if (memcmp(p, "OPEN", 4) == 0) {
 #if WHOLE_FSTAT
+		fprintf(stderr, "[%d] ProccessOffloadEchoPacket \n", __LINE__);
 		/* TODO: Parse OPEN echo packet (either OPEN failed or succeeded) */
 		if (!sscanf(p + 4, "%d %d %n", &offload_fid, &offload_open_status, &stat_offset) == 1) {
 			TRACE_ERROR("Received weird open echo from NIC %s (%d)\n", p, payloadlen);
 			return FALSE;
 		}
-		if (payloadlen != 4 + stat_offset + sizeof(struct stat)) {
-			TRACE_ERROR("Received weird open echo from NIC %s (%d, %d, %d)\n", p, stat_offset, payloadlen, (int)sizeof(struct stat));
+		if (payloadlen != 4 + stat_offset + sizeof(struct mtcp_stat)) {
+			TRACE_ERROR("Received weird open echo from NIC %s (%d, %d, %d)\n", p, stat_offset, payloadlen, (int)sizeof(struct mtcp_stat));
 			return FALSE;
 		}
 #else
@@ -1544,7 +1545,7 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 			}
 		}
 #if WHOLE_FSTAT
-		memcpy(&ov->sb, &p + 4 + stat_offset, sizeof(struct stat));
+		memcpy(&ov->sb, &p + 4 + stat_offset, sizeof(struct mtcp_stat));
 		offload_fsize = ov->sb.st_size;
 #else
 		ov->sb.st_size = (off_t)offload_fsize;
@@ -1555,6 +1556,8 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 		mfs.file_len = (uint64_t)offload_fsize;
 		if (FnameStatHTInsert(mtcp->fnamestat_table, &mfs) < 0)
 			return FALSE;
+		fprintf(stderr, "[%d] ProccessOffloadEchoPacket \n", __LINE__);
+		RaiseOffloadOpenEvent(mtcp, cur_stream);
 		return TRUE;
 	} else if (memcmp(p, "SEND", 4) == 0) {
 		cur_stream->last_active_ts = cur_ts;

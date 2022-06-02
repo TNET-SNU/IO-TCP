@@ -179,6 +179,26 @@ int chunkqueue_append_file(chunkqueue *cq, buffer *fn, off_t offset, off_t len) 
 	return 0;
 }
 
+int chunkqueue_append_file_mtcpoffload(chunkqueue *cq, buffer *fn, int filefd, off_t offset, off_t len) {
+	chunk *c;
+
+	if (len == 0) return 0;
+
+	c = chunkqueue_get_unused_chunk(cq);
+
+	c->type = FILE_CHUNK;
+
+	buffer_copy_string_buffer(c->file.name, fn);
+	c->file.start = offset;
+	c->file.length = len;
+	c->offset = 0;
+	c->file.fd = filefd;
+
+	chunkqueue_append_chunk(cq, c);
+
+	return 0;
+}
+
 int chunkqueue_append_buffer(chunkqueue *cq, buffer *mem) {
 	chunk *c;
 

@@ -52,6 +52,23 @@ struct mtcp_conf
 	int tcp_timeout;
 };
 
+struct mtcp_stat
+{
+    uint64_t st_dev;		/* Device. __dev_t */
+    uint64_t st_ino;		/* File serial number.	*/
+    uint32_t st_mode;			/* File mode.  */
+    uint64_t st_nlink;			/* Link count.  */
+    uint32_t st_uid;		/* User ID of the file's owner.	*/
+    uint32_t st_gid;		/* Group ID of the file's group.*/
+    uint64_t st_rdev;		/* Device number, if device.  */
+    uint64_t st_size;			/* Size of file, in bytes.  */
+    uint64_t st_blksize;	/* Optimal block size for I/O.  */
+    uint64_t st_blocks;		/* Number 512-byte blocks allocated. */
+    int64_t _st_atime;			/* Time of last access.  */
+    int64_t _st_mtime;			/* Time of last modification.  */
+    int64_t _st_ctime;			/* Time of last status change.  */
+};
+
 typedef struct mtcp_context *mctx_t;
 
 int 
@@ -169,9 +186,9 @@ mtcp_offload_write(mctx_t mctx, int sockid, int offload_fid,
 
 int
 mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,
-					   struct stat *buf);
+					   struct mtcp_stat *buf);
 int
 mtcp_offload_stat(mctx_t mctx, const char *file_name,
-					   struct stat *buf);
+					   struct mtcp_stat *buf);
 
 #endif /* MTCP_API_H */

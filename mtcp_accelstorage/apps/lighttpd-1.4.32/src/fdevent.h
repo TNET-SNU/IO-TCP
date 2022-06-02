@@ -68,6 +68,7 @@ typedef handler_t (*fdevent_handler)(struct server *srv, void *ctx, int revents)
 #define FDEVENT_ERR    BV(3)
 #define FDEVENT_HUP    BV(4)
 #define FDEVENT_NVAL   BV(5)
+#define FDEVENT_MTCPOFFOPEN   BV(6)
 
 typedef enum { FD_EVENT_TYPE_UNSET = -1,
 		FD_EVENT_TYPE_CONNECTION,

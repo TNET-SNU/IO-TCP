@@ -1222,7 +1222,7 @@ WriteTCPOffloadFileList(mtcp_manager_t mtcp, struct mtcp_sender *sender,
 				(void)(ret);
 				(void)(payloadlen);
 #endif
-
+				
 				ov->offload_ready = TRUE;
 				/* Put the stream back on the send queue */
 				if (cur_stream->sndvar->sndbuf->len > 0 &&

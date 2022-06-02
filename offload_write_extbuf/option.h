@@ -31,6 +31,10 @@
 
 #define SHOW_STATS 0
 
-//#define NO_FS_PERFTEST
+#define NO_FS_PERFTEST FALSE
+#define NICTOHOST_FSTAT TRUE
+#define WHOLE_FSTAT TRUE
+#define HOSTTONIC_FSTAT FALSE // Not Implemented
+#define INDEPENDENT_FSTAT FALSE
 
 #endif /* __OPTION_H__ */

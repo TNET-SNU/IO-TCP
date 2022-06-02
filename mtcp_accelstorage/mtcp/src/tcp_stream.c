@@ -173,6 +173,26 @@ RaiseReadEvent(mtcp_manager_t mtcp, tcp_stream *stream)
 }
 /*---------------------------------------------------------------------------*/
 inline void 
+RaiseOffloadOpenEvent(mtcp_manager_t mtcp, tcp_stream *stream)
+{
+	fprintf(stderr, "[%d] RaiseOffloadOpenEvent \n", __LINE__);
+	if (stream->socket) {
+		fprintf(stderr, "[%d] RaiseOffloadOpenEvent \n", __LINE__);
+		// if (stream->socket->epoll & MTCP_EPOLLOFFOPEN) {
+		if (true) {
+			fprintf(stderr, "[%d] RaiseOffloadOpenEvent \n", __LINE__);
+			AddEpollEvent(mtcp->ep, 
+					MTCP_EVENT_QUEUE, stream->socket, MTCP_EPOLLOFFOPEN);
+#if BLOCKING_SUPPORT
+		TRACE_EPOLL("Stream %d: offload open has no support for blocking sockets!\n", stream->id);
+#endif
+		}
+	} else {
+		TRACE_EPOLL("Stream %d: Raising offload open without a socket!\n", stream->id);
+	}
+}
+/*---------------------------------------------------------------------------*/
+inline void 
 RaiseWriteEvent(mtcp_manager_t mtcp, tcp_stream *stream)
 {
 	if (stream->socket) {

@@ -50,6 +50,7 @@ typedef struct {
 chunkqueue *chunkqueue_init(void);
 int chunkqueue_set_tempdirs(chunkqueue *c, array *tempdirs);
 int chunkqueue_append_file(chunkqueue *c, buffer *fn, off_t offset, off_t len);
+int chunkqueue_append_file_mtcpoffload(chunkqueue *cq, buffer *fn, int filefd, off_t offset, off_t len);
 int chunkqueue_append_mem(chunkqueue *c, const char *mem, size_t len);
 int chunkqueue_append_buffer(chunkqueue *c, buffer *mem);
 int chunkqueue_append_buffer_weak(chunkqueue *c, buffer *mem);

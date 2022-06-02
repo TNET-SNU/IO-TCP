@@ -129,6 +129,22 @@ struct thread_context {
   struct dpdk_private_context *dpc;
 };
 
+struct mtcp_stat {
+    uint64_t _st_dev;		/* Device. __dev_t */
+    uint64_t _st_ino;		/* File serial number.	*/
+    uint32_t _st_mode;			/* File mode.  */
+    uint64_t _st_nlink;			/* Link count.  */
+    uint32_t _st_uid;		/* User ID of the file's owner.	*/
+    uint32_t _st_gid;		/* Group ID of the file's group.*/
+    uint64_t _st_rdev;		/* Device number, if device.  */
+    uint64_t _st_size;			/* Size of file, in bytes.  */
+    uint64_t _st_blksize;	/* Optimal block size for I/O.  */
+    uint64_t _st_blocks;		/* Number 512-byte blocks allocated. */
+    int64_t _st_atime;			/* Time of last access.  */
+    int64_t _st_mtime;			/* Time of last modification.  */
+    int64_t _st_ctime;			/* Time of last status change.  */
+};
+
 #define MAX_BLOCKS MAX_IOV
 struct file_cache {
 	uint32_t  fc_fid;               // file id in the host side 
@@ -145,6 +161,7 @@ struct file_cache {
 	uint8_t  *fc_blkPtr[MAX_BLOCKS];// pointers to file content blocks
 	uint8_t   fc_haddr[6];          // dest ethernet addr. why here?
 	TAILQ_ENTRY(file_cache) file_cache_link;
+	struct mtcp_stat *fc_stat;
 
 	// for debugging
 	//#ifndef NDEBUG

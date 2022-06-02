@@ -533,6 +533,41 @@ int network_write_chunkqueue_mtcp_writev(server *srv, connection *con, int fd, c
 /* 
  * The following code is the `offload_write' version of mtcp.
  */
+int network_write_chunkqueue_mtcp_offload_open(server *srv, connection *con)
+{
+	int fd = con->fd;
+	chunkqueue* cq = con->write_queue;
+	chunk *c;
+
+	for (c = cq->first; NULL != c; c = c->next)
+	{
+		switch (c->type)
+		{
+		case FILE_CHUNK:
+		{
+			if (c->file.fd < 0)
+			{
+				if (-1 == (c->file.fd = mtcp_offload_open(srv->mctx, fd, c->file.name->ptr)))
+				{
+					log_error_write(srv, __FILE__, __LINE__, "ss", "offload open failed: ", strerror(errno));
+					return -1;
+				}
+
+			}
+			break;
+		}
+		default:
+			log_error_write(srv, __FILE__, __LINE__, "ds", c, "type not known");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+/*------------------------------------------------------------------------------------*/
+/* 
+ * The following code is the `offload_write' version of mtcp.
+ */
 int network_write_chunkqueue_mtcp_offload_write(server *srv, connection *con, int fd, chunkqueue *cq, off_t max_bytes)
 {
 	chunk *c;
@@ -630,12 +665,10 @@ int network_write_chunkqueue_mtcp_offload_write(server *srv, connection *con, in
 
 			if (c->file.fd < 0)
 			{
-				if (-1 == (c->file.fd = mtcp_offload_open(srv->mctx, fd, c->file.name->ptr)))
-				{
-					log_error_write(srv, __FILE__, __LINE__, "ss", "offload open failed: ", strerror(errno));
-					return -1;
-				}
-
+				// log_error_write(srv, __FILE__, __LINE__, "ss", "no offload open");
+				// return -1;
+				fprintf(stderr, "no offload opened yet\n");
+				break;
 			}
 
 			if ((r = mtcp_offload_write(srv->mctx, fd, c->file.fd, &c->offset, toSend)) < 0)

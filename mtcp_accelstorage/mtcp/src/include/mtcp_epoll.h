@@ -28,6 +28,7 @@ enum mtcp_event_type
 	MTCP_EPOLLMSG		= 0x400, 
 	MTCP_EPOLLERR		= 0x008,
 	MTCP_EPOLLHUP		= 0x010,
+	MTCP_EPOLLOFFOPEN	= 0x800, // offload open
 	MTCP_EPOLLRDHUP 	= 0x2000,
 	MTCP_EPOLLONESHOT	= (1 << 30), 
 	MTCP_EPOLLET		= (1 << 31)

@@ -25,7 +25,8 @@
 
 void
 offload_cleanup(mtcp_manager_t mtcp);
-
+int
+stat_to_mtcpstat(struct mtcp_stat * mtcp_stat, struct stat * _fc_stat);
 /*----------------------------------------------------------------------------*/
 static inline int 
 mtcp_is_connected(mtcp_manager_t mtcp, tcp_stream *cur_stream)
@@ -1784,6 +1785,16 @@ mtcp_offload_open(mctx_t mctx, int sockid, const char *file_name)
 	}
 
 	sndvar = cur_stream->sndvar;
+	/* allocate send buffer if not exist */
+	if (!sndvar->sndbuf) {
+		sndvar->sndbuf = SBInit(mtcp->rbm_snd, sndvar->iss + 1);
+		if (!sndvar->sndbuf) {
+			cur_stream->close_reason = TCP_NO_MEM;
+			/* notification may not required due to -1 return */
+			errno = ENOMEM;
+			return -1;
+		}
+	}
 
 	if (strlen(file_name) >= OFFLOAD_NAME_LIMIT) {
 		TRACE_ERROR("Offload file name too long\n");
@@ -2115,13 +2126,14 @@ mtcp_offload_write(mctx_t mctx, int sockid,
 }
 /*----------------------------------------------------------------------------*/
 int
-mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct stat* buf) {
+mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct mtcp_stat* buf) {
 	mtcp_manager_t mtcp;
 	socket_map_t socket;
 	tcp_stream *cur_stream;
 	struct tcp_send_vars *sndvar;
 	struct offload_vars *offload_vars, *_o;
 	int ret = -1;
+	struct stat _stat;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
@@ -2171,11 +2183,12 @@ mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct
 		errno = EBADF;
 		ret = -1;
 	} else if (offload_vars->sb.st_size == 0) {
-		if (-1 == stat(offload_vars->offload_fn, buf)) {
-			TRACE_ERROR("mtcp_offload_stat() not received from the NIC yet and stat(%s) failed as well.\n", offload_vars->offload_fn);		
+		if (-1 == stat(offload_vars->offload_fn, &_stat)) {
+			TRACE_ERROR("mtcp_offload_fstat() not received from the NIC yet and stat(%s) failed as well.\n", offload_vars->offload_fn);		
 			errno = EBADF;
 			return -1;
 		}
+		stat_to_mtcpstat(buf, &_stat);
 		ret = 0;
 	} else {
 		*buf = offload_vars->sb;
@@ -2192,11 +2205,12 @@ mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct
 }
 /*----------------------------------------------------------------------------*/
 int
-mtcp_offload_stat(mctx_t mctx, const char *file_name, struct stat* buf) {
+mtcp_offload_stat(mctx_t mctx, const char *file_name, struct mtcp_stat* buf) {
 	mtcp_manager_t mtcp;
 	struct mtcp_filename_stat mfs;
 	struct mtcp_filename_stat *_mfs;
 	int ret = -1;
+	struct stat _stat;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
@@ -2207,11 +2221,12 @@ mtcp_offload_stat(mctx_t mctx, const char *file_name, struct stat* buf) {
 	strcpy(mfs.offload_fn, file_name);
 	_mfs = FnameStatHTSearch(mtcp->fnamestat_table, &mfs);
 	if (_mfs == NULL) {
-		if (-1 == stat(file_name, buf)) {
+		if (-1 == stat(file_name, &_stat)) {
 			TRACE_ERROR("mtcp_offload_stat() not received from the NIC yet and stat(%s) failed as well.\n", file_name);		
 			errno = EBADF;
 			return -1;
 		}
+		stat_to_mtcpstat(buf, &_stat);
 		ret = 0;
 	} else {
 		buf->st_size = _mfs->file_len;
@@ -2240,4 +2255,22 @@ offload_cleanup(mtcp_manager_t mtcp)
 		MPFreeChunk(mtcp->ob_pool, ob);
 	}
 	SBUF_UNLOCK(&mtcp->offload_cleanup_lock);
+}
+/*---------------------------------------------------------------------------*/
+int
+stat_to_mtcpstat(struct mtcp_stat * mtcp_stat, struct stat * _fc_stat){
+	int ret = 0;
+	mtcp_stat->st_ino = (uint64_t)_fc_stat->st_ino;
+	mtcp_stat->st_mode = (uint32_t)_fc_stat->st_mode;
+	mtcp_stat->st_nlink = (uint64_t)_fc_stat->st_nlink;
+	mtcp_stat->st_uid = (uint32_t)_fc_stat->st_uid;
+	mtcp_stat->st_gid = (uint32_t)_fc_stat->st_gid;
+	mtcp_stat->st_rdev = (uint64_t)_fc_stat->st_rdev;
+	mtcp_stat->st_size = (uint64_t)_fc_stat->st_size;
+	mtcp_stat->st_blksize = (uint64_t)_fc_stat->st_blksize;
+	mtcp_stat->st_blocks = (uint64_t)_fc_stat->st_blocks;
+	mtcp_stat->_st_atime = (int64_t)_fc_stat->st_atime;
+	mtcp_stat->_st_mtime = (int64_t)_fc_stat->st_mtime;
+	mtcp_stat->_st_ctime = (int64_t)_fc_stat->st_ctime;
+	return ret;
 }

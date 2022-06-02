@@ -60,6 +60,9 @@ fdevent_libmtcp_epoll_event_set(fdevents *ev, int fde_ndx, int fd, int events)
 	
 	if (events & FDEVENT_IN)  ep.events |= MTCP_EPOLLIN;
 	if (events & FDEVENT_OUT) ep.events |= MTCP_EPOLLOUT;
+	if (events & FDEVENT_MTCPOFFOPEN) {
+		ep.events |= MTCP_EPOLLOFFOPEN;
+	}
 
 	/**
 	 *
@@ -69,7 +72,7 @@ fdevent_libmtcp_epoll_event_set(fdevents *ev, int fde_ndx, int fd, int events)
 	 *
 	 */
 
-	ep.events |= MTCP_EPOLLERR | MTCP_EPOLLHUP /* | EPOLLET */;
+	ep.events |= MTCP_EPOLLERR | MTCP_EPOLLHUP/* | EPOLLET */;
 
 	/*ep.data.ptr = NULL;*/
 	ep.data.sockid = fd;
@@ -104,6 +107,7 @@ fdevent_libmtcp_epoll_event_get_revent(fdevents *ev, size_t ndx)
 	if (e & MTCP_EPOLLERR) events |= FDEVENT_ERR;
 	if (e & MTCP_EPOLLHUP) events |= FDEVENT_HUP;
 	if (e & MTCP_EPOLLPRI) events |= FDEVENT_PRI;
+	if (e & MTCP_EPOLLOFFOPEN) events |= FDEVENT_MTCPOFFOPEN;
 
 	return events;
 }

@@ -126,7 +126,7 @@
 /* Offload Options */
 #define NO_FS_PERFTEST FALSE
 #define NICTOHOST_FSTAT TRUE
-#define WHOLE_FSTAT FALSE
+#define WHOLE_FSTAT TRUE
 #define HOSTTONIC_FSTAT FALSE // Not Implemented
 #define INDEPENDENT_FSTAT FALSE
 /*----------------------------------------------------------------------------*/

@@ -1,6 +1,9 @@
 #ifndef _LIGHTTPD_SETTINGS_H_
 #define _LIGHTTPD_SETTINGS_H_
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
 #endif
@@ -14,6 +17,10 @@
 #define INET_NTOP_CACHE_MAX 4
 #define FILE_CACHE_MAX      16
 
+
+#if defined HAVE_LIBMTCP && (HAVE_LIBPSIO | HAVE_LIBDPDK | HAVE_NETMAP)
+#define USE_MTCP
+#endif
 /**
  * max size of a buffer which will just be reset
  * to ->used = 0 instead of really freeing the buffer

@@ -71,6 +71,26 @@ int http_chunk_append_file(server *srv, connection *con, buffer *fn, off_t offse
 	return 0;
 }
 
+int http_chunk_append_file_mtcpoffload(server *srv, connection *con, buffer *fn, int filefd, off_t offset, off_t len) {
+	chunkqueue *cq;
+
+	if (!con) return -1;
+
+	cq = con->write_queue;
+
+	if (con->response.transfer_encoding & HTTP_TRANSFER_ENCODING_CHUNKED) {
+		http_chunk_append_len(srv, con, len);
+	}
+
+	chunkqueue_append_file_mtcpoffload(cq, fn, filefd, offset, len);
+
+	if (con->response.transfer_encoding & HTTP_TRANSFER_ENCODING_CHUNKED && len > 0) {
+		chunkqueue_append_mem(cq, "\r\n", 2 + 1);
+	}
+
+	return 0;
+}
+
 int http_chunk_append_buffer(server *srv, connection *con, buffer *mem) {
 	chunkqueue *cq;
 

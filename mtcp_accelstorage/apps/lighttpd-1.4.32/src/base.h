@@ -341,6 +341,7 @@ typedef enum {
 	CON_STATE_HANDLE_REQUEST,
 	CON_STATE_RESPONSE_START,
 	CON_STATE_WRITE,
+	CON_STATE_OFFOPENWAIT,
 	CON_STATE_RESPONSE_END,
 	CON_STATE_ERROR,
 	CON_STATE_CLOSE
@@ -383,6 +384,7 @@ typedef struct {
 	/* fd states */
 	int is_readable;
 	int is_writable;
+	int is_fileopened;
 
 	int keep_alive;              /* only request.c can enable it, all other just disable */
 	int keep_alive_idle;         /* remember max_keep_alive_idle from config */
@@ -414,6 +416,7 @@ typedef struct {
 	request_uri uri;
 	physical physical;
 	response response;
+	int filefd; // for mtcp offload
 
 	size_t header_len;
 
@@ -565,6 +568,20 @@ typedef struct {
 	size_t used;
 } server_socket_array;
 
+/*----------------------------------------------------------------------------*/
+typedef enum {
+	NETWORK_BACKEND_UNSET,
+	NETWORK_BACKEND_WRITE,
+	NETWORK_BACKEND_WRITEV,
+	NETWORK_BACKEND_LINUX_SENDFILE,
+	NETWORK_BACKEND_FREEBSD_SENDFILE,
+	NETWORK_BACKEND_SOLARIS_SENDFILEV,
+#ifdef USE_MTCP
+	NETWORK_BACKEND_MTCP,
+	NETWORK_BACKEND_MTCP_OFFLOAD_WRITE
+#endif
+} network_backend_t;
+
 typedef struct server {
 	server_socket_array srv_sockets;
 
@@ -680,6 +697,8 @@ typedef struct server {
 #endif
 	uid_t uid;
 	gid_t gid;
+
+	network_backend_t backend;
 } server;
 
 

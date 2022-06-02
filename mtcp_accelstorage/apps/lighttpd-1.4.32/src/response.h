@@ -12,6 +12,8 @@ int response_header_insert(server *srv, connection *con, const char *key, size_t
 int response_header_overwrite(server *srv, connection *con, const char *key, size_t keylen, const char *value, size_t vallen);
 int response_header_append(server *srv, connection *con, const char *key, size_t keylen, const char *value, size_t vallen);
 
+handler_t http_response_prepare_parsing(server *srv, connection *con);
+handler_t http_response_prepare_filecheck(server *srv, connection *con);
 handler_t http_response_prepare(server *srv, connection *con);
 int http_response_redirect_to_directory(server *srv, connection *con);
 int http_response_handle_cachable(server *srv, connection *con, buffer * mtime);

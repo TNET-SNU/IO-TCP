@@ -76,6 +76,24 @@ GetCurrentTimeMsec(void)
 	return (tv.tv_sec * 1e3 + tv.tv_usec *1e-3);
 }
 /*---------------------------------------------------------------------------*/
+int
+stat_to_mtcpstat(struct mtcp_stat * mtcp_stat, struct stat * _fc_stat){
+	int ret = 0;
+	mtcp_stat->_st_ino = (uint64_t)_fc_stat->st_ino;
+	mtcp_stat->_st_mode = (uint32_t)_fc_stat->st_mode;
+	mtcp_stat->_st_nlink = (uint64_t)_fc_stat->st_nlink;
+	mtcp_stat->_st_uid = (uint32_t)_fc_stat->st_uid;
+	mtcp_stat->_st_gid = (uint32_t)_fc_stat->st_gid;
+	mtcp_stat->_st_rdev = (uint64_t)_fc_stat->st_rdev;
+	mtcp_stat->_st_size = (uint64_t)_fc_stat->st_size;
+	mtcp_stat->_st_blksize = (uint64_t)_fc_stat->st_blksize;
+	mtcp_stat->_st_blocks = (uint64_t)_fc_stat->st_blocks;
+	mtcp_stat->_st_atime = (int64_t)_fc_stat->st_atime;
+	mtcp_stat->_st_mtime = (int64_t)_fc_stat->st_mtime;
+	mtcp_stat->_st_ctime = (int64_t)_fc_stat->st_ctime;
+	return ret;
+}
+/*---------------------------------------------------------------------------*/
 static void
 thread_local_init(int core_id)
 {
@@ -279,13 +297,15 @@ OpenFileForOffload(int cid, char *file_name, uint32_t fid, uint8_t *haddr)
 #elif INDEPENDENT_FSTAT
   fc->fc_fileSize = lseek64(fd, 0, SEEK_END);
 #elif NICTOHOST_FSTAT
-  fc->fc_stat = (struct stat*)malloc(sizeof(struct stat));
+  fc->fc_stat = (struct mtcp_stat*)malloc(sizeof(struct mtcp_stat));
+  struct stat _fc_stat;
   if (fc->fc_stat == NULL) {
 	TRACE_ERROR("malloc() failed\n");
 	exit(-1);
   }
-  fstat(fd, fc->fc_stat);
-  fc->fc_fileSize = fc->fc_stat->st_size;
+  fstat(fd, &_fc_stat);
+  stat_to_mtcpstat(fc->fc_stat, &_fc_stat);
+  fc->fc_fileSize = fc->fc_stat->_st_size;
 #endif
   fc->fc_fd    = fd;
   fc->fc_fid   = fid;
@@ -619,8 +639,9 @@ SendOpenEchoPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int offload_f
 
 #if WHOLE_FSTAT
 	p_len = snprintf(p, 128, "OPEN %d %d ", offload_fid, offload_open_status);
-	memcpy(p + p_len, fc->fc_stat, sizeof(struct stat));
-	p_len += sizeof(struct stat);
+	memcpy(p + p_len, fc->fc_stat, sizeof(struct mtcp_stat));
+	p_len += sizeof(struct mtcp_stat);
+	fprintf(stderr, "[%d] SendOpenEchoPacket \n", __LINE__);
 #else
 	p_len = snprintf(p, 128, "OPEN %d %d %d", offload_fid, offload_open_status, fc->fc_stat->st_size);
 #endif
@@ -1124,7 +1145,6 @@ ProcessPacket(uint16_t core_id, uint16_t port, uint8_t *pktbuf, int totlen)
 #if NICTOHOST_FSTAT
 		SendOpenEchoPacket(core_id, port, pktbuf, fid, ret);
 #endif
-
 		return; /* we're done */
 	  }
   }
@@ -1151,7 +1171,8 @@ ProcessPacket(uint16_t core_id, uint16_t port, uint8_t *pktbuf, int totlen)
 	  }
   }  
   if (command == CMD_INVALID) {  /* failed to parse the command */
-	  TRACE_ERROR("Cannto recognize offload I/O request\n");
+	  TRACE_ERROR("Cannot recognize offload I/O request [%d]\n",p_len);
+	  TRACE_ERROR("Cannot recognize offload I/O request [%s]\n",p);
 	  dump_pkt(pktbuf, totlen);
 	  exit(-1);
   }
