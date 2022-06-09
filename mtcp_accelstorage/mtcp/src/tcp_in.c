@@ -1545,8 +1545,9 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 			}
 		}
 #if WHOLE_FSTAT
-		memcpy(&ov->sb, &p + 4 + stat_offset, sizeof(struct mtcp_stat));
+		memcpy(&ov->sb, p + 4 + stat_offset, sizeof(struct mtcp_stat));
 		offload_fsize = ov->sb.st_size;
+		mfs.sb = &ov->sb;	
 #else
 		ov->sb.st_size = (off_t)offload_fsize;
 #endif
@@ -1554,9 +1555,11 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 		SBUF_UNLOCK(&cur_stream->sndvar->write_lock);
 		strcpy(mfs.offload_fn, ov->offload_fn);
 		mfs.file_len = (uint64_t)offload_fsize;
+		fprintf(stderr,"[%d] FnameStatHTInsert\n",__LINE__);
 		if (FnameStatHTInsert(mtcp->fnamestat_table, &mfs) < 0)
 			return FALSE;
-		fprintf(stderr, "[%d] ProccessOffloadEchoPacket \n", __LINE__);
+		fprintf(stderr,"[%d] FnameStatHTInsert\n",__LINE__);
+
 		RaiseOffloadOpenEvent(mtcp, cur_stream);
 		return TRUE;
 	} else if (memcmp(p, "SEND", 4) == 0) {

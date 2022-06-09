@@ -125,6 +125,7 @@ int connection_close(server *srv, connection *con) {
 	}
 #endif
 
+	fprintf(stderr, "[%d] connection_close \n", __LINE__);
 	fdevent_event_del(srv->ev, &(con->fde_ndx), con->fd);
 	fdevent_unregister(srv->ev, con->fd);
 #ifdef __WIN32
@@ -518,6 +519,7 @@ static int connection_handle_write_prepare(server *srv, connection *con) {
 
 				if (srv->backend == NETWORK_BACKEND_MTCP_OFFLOAD_WRITE) {
 					http_chunk_append_file_mtcpoffload(srv, con, con->physical.path, con->filefd, 0, sce->st.st_size);
+					exit(1);
 				} else {
 					http_chunk_append_file(srv, con, con->physical.path, 0, sce->st.st_size);
 				}
@@ -564,11 +566,14 @@ static int connection_handle_write_prepare(server *srv, connection *con) {
 		break;
 	}
 
-	if (con->file_finished) {
+	if (1) {
+	// if (con->file_finished) {
+		fprintf(stderr,"[%d] connection_handle_write_prepare\n",__LINE__);
 		/* we have all the content and chunked encoding is not used, set a content-length */
 
 		if ((!(con->parsed_response & HTTP_CONTENT_LENGTH)) &&
 		    (con->response.transfer_encoding & HTTP_TRANSFER_ENCODING_CHUNKED) == 0) {
+			fprintf(stderr,"[%d] connection_handle_write_prepare\n",__LINE__);
 			off_t qlen = chunkqueue_length(con->write_queue);
 
 			/**
@@ -582,6 +587,7 @@ static int connection_handle_write_prepare(server *srv, connection *con) {
 			if ((con->http_status >= 100 && con->http_status < 200) ||
 			    con->http_status == 204 ||
 			    con->http_status == 304) {
+				fprintf(stderr,"[%d] connection_handle_write_prepare\n",__LINE__);
 				data_string *ds;
 				/* no Content-Body, no Content-Length */
 				if (NULL != (ds = (data_string*) array_get_element(con->response.headers, "Content-Length"))) {
@@ -593,10 +599,13 @@ static int connection_handle_write_prepare(server *srv, connection *con) {
 				 */
 				buffer_copy_off_t(srv->tmp_buf, qlen);
 
+				fprintf(stderr,"[%d] response_header_overwrite %d\n",__LINE__, CONST_BUF_LEN(srv->tmp_buf));
 				response_header_overwrite(srv, con, CONST_STR_LEN("Content-Length"), CONST_BUF_LEN(srv->tmp_buf));
+				fprintf(stderr,"[%d] response_header_overwrite %d\n",__LINE__, CONST_BUF_LEN(srv->tmp_buf));
 			}
 		}
 	} else {
+		fprintf(stderr,"[%d] connection_handle_write_prepare\n",__LINE__);
 		/**
 		 * the file isn't finished yet, but we have all headers
 		 *
@@ -1221,7 +1230,6 @@ static handler_t connection_handle_fdevent(server *srv, void *context, int reven
 		}
 		if (revents & FDEVENT_MTCPOFFOPEN) {
 			con->is_fileopened = 1;
-			fprintf(stderr,"[%d] connection_handle_fdevent\n",__LINE__);
 		}
 	} else {
 		if (revents & FDEVENT_IN) {
@@ -1233,7 +1241,6 @@ static handler_t connection_handle_fdevent(server *srv, void *context, int reven
 		}
 		if (revents & FDEVENT_MTCPOFFOPEN) {
 			con->is_fileopened = 1;
-			fprintf(stderr,"[%d] connection_handle_fdevent\n",__LINE__);
 		}
 	}
 
@@ -1377,6 +1384,7 @@ connection *connection_accept(server *srv, server_socket *srv_socket) {
 #endif
 		fdevent_register(srv->ev, con->fd, connection_handle_fdevent, con);
 
+		fprintf(stderr, "[%d] connection_accept \n", __LINE__);
 		connection_set_state(srv, con, CON_STATE_REQUEST_START);
 
 		con->connection_start = srv->cur_ts;
@@ -1431,6 +1439,7 @@ int connection_state_machine(server *srv, connection *con) {
 	while (done == 0) {
 		size_t ostate = con->state;
 
+		fprintf(stderr, "[%d] con->state %d \n", __LINE__, con->state);
 		switch (con->state) {
 		case CON_STATE_REQUEST_START: /* transient */
 			if (srv->srvconf.log_state_handling) {
@@ -1498,18 +1507,19 @@ int connection_state_machine(server *srv, connection *con) {
 						connection_set_state(srv, con, CON_STATE_OFFOPENWAIT);
 						fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
 						fdevent_event_set(srv->ev, &(con->fde_ndx), con->fd, FDEVENT_MTCPOFFOPEN);
-						break;
+						// if (con->fd-> stream->socket->epoll & MTCP_EPOLLOFFOPEN) {
+					}
+					break;
+				} else {
+					if (srv->srvconf.log_state_handling) {
+						log_error_write(srv, __FILE__, __LINE__, "sds",
+								"state for fd", con->fd, connection_get_state(con->state));
+					}
+
+					if (r == HANDLER_GO_ON) {
+						r = http_response_prepare_filecheck(srv, con);
 					}
 				}
-			}
-
-			if (srv->srvconf.log_state_handling) {
-				log_error_write(srv, __FILE__, __LINE__, "sds",
-						"state for fd", con->fd, connection_get_state(con->state));
-			}
-
-			if (r == HANDLER_GO_ON) {
-				r = http_response_prepare_filecheck(srv, con);
 			}
 			switch (r) {
 			case HANDLER_FINISHED:
@@ -1550,6 +1560,7 @@ int connection_state_machine(server *srv, connection *con) {
 					}
 				}
 				if (con->http_status == 0) con->http_status = 200;
+				fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
 
 				connection_set_state(srv, con, CON_STATE_RESPONSE_START);
 				/* we have something to send, go on */
@@ -1582,8 +1593,88 @@ int connection_state_machine(server *srv, connection *con) {
 		case CON_STATE_OFFOPENWAIT:
 			fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
 			if (con->is_fileopened) {
+				fprintf(stderr, "[%d] connection_state_machine %d \n", __LINE__, con->http_status);
+				if (srv->srvconf.log_state_handling) {
+					log_error_write(srv, __FILE__, __LINE__, "sds",
+							"state for fd", con->fd, connection_get_state(con->state));
+				}
+				r = http_response_prepare_filecheck(srv, con);
+				fprintf(stderr, "[%d] connection_state_machine %d \n", __LINE__, con->http_status);
+				switch (r) {
+				case HANDLER_FINISHED:
+					fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+					if (con->mode == DIRECT) {
+						if (con->http_status == 404 ||
+							con->http_status == 403) {
+							/* 404 error-handler */
+
+							if (con->in_error_handler == 0 &&
+								(!buffer_is_empty(con->conf.error_handler) ||
+								!buffer_is_empty(con->error_handler))) {
+								/* call error-handler */
+
+								con->error_handler_saved_status = con->http_status;
+								con->http_status = 0;
+
+								if (buffer_is_empty(con->error_handler)) {
+									buffer_copy_string_buffer(con->request.uri, con->conf.error_handler);
+								} else {
+									buffer_copy_string_buffer(con->request.uri, con->error_handler);
+								}
+								buffer_reset(con->physical.path);
+
+								con->in_error_handler = 1;
+
+								connection_set_state(srv, con, CON_STATE_HANDLE_REQUEST);
+
+								done = -1;
+								break;
+							} else if (con->in_error_handler) {
+								/* error-handler is a 404 */
+
+								con->http_status = con->error_handler_saved_status;
+							}
+						} else if (con->in_error_handler) {
+							/* error-handler is back and has generated content */
+							/* if Status: was set, take it otherwise use 200 */
+						}
+					}
+					if (con->http_status == 0)
+						con->http_status = 200;
+					fprintf(stderr, "[%d] 200 SUCCESS \n", __LINE__);
+
+					connection_set_state(srv, con, CON_STATE_RESPONSE_START);
+					/* we have something to send, go on */
+					break;
+				case HANDLER_WAIT_FOR_FD:
+					fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+					srv->want_fds++;
+
+					fdwaitqueue_append(srv, con);
+
+					connection_set_state(srv, con, CON_STATE_HANDLE_REQUEST);
+
+					break;
+				case HANDLER_COMEBACK:
+					fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+					done = -1;
+				case HANDLER_WAIT_FOR_EVENT:
+					/* come back here */
+					connection_set_state(srv, con, CON_STATE_HANDLE_REQUEST);
+
+					break;
+				case HANDLER_ERROR:
+					fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+					/* something went wrong */
+					connection_set_state(srv, con, CON_STATE_ERROR);
+					break;
+				default:
+					fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+					log_error_write(srv, __FILE__, __LINE__, "sdd", "unknown ret-value: ", con->fd, r);
+					break;
+				}
 				connection_set_state(srv, con, CON_STATE_RESPONSE_START);
-				fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
+				fprintf(stderr, "[%d] connection_state_machine %d \n", __LINE__, con->http_status);
 			}
 			break;
 		case CON_STATE_RESPONSE_START:
@@ -1593,6 +1684,7 @@ int connection_state_machine(server *srv, connection *con) {
 			 *
 			 */
 
+			fprintf(stderr, "[%d] connection_state_machine %d \n", __LINE__, con->http_status);
 			if (srv->srvconf.log_state_handling) {
 				log_error_write(srv, __FILE__, __LINE__, "sds",
 						"state for fd", con->fd, connection_get_state(con->state));
@@ -1601,9 +1693,12 @@ int connection_state_machine(server *srv, connection *con) {
 			if (-1 == connection_handle_write_prepare(srv, con)) {
 				connection_set_state(srv, con, CON_STATE_ERROR);
 
+				fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
 				break;
 			}
+			fprintf(stderr, "[%d] connection_state_machine %d \n", __LINE__, con->http_status);
 			connection_set_state(srv, con, CON_STATE_WRITE);
+			break;
 		case CON_STATE_RESPONSE_END: /* transient */
 			/* log the request */
 
@@ -1617,6 +1712,7 @@ int connection_state_machine(server *srv, connection *con) {
 			srv->con_written++;
 
 			if (con->keep_alive) {
+				fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
 				connection_set_state(srv, con, CON_STATE_REQUEST_START);
 
 #if 0
@@ -1725,6 +1821,7 @@ int connection_state_machine(server *srv, connection *con) {
 			connection_handle_read_state(srv, con);
 			break;
 		case CON_STATE_WRITE:
+			fprintf(stderr, "[%d] connection_state_machine %d \n", __LINE__, con->http_status);
 			if (srv->srvconf.log_state_handling) {
 				log_error_write(srv, __FILE__, __LINE__, "sds",
 						"state for fd", con->fd, connection_get_state(con->state));
@@ -1747,7 +1844,7 @@ int connection_state_machine(server *srv, connection *con) {
 					connection_set_state(srv, con, CON_STATE_ERROR);
 				}
 			}
-
+			fprintf(stderr, "[%d] connection_state_machine %d \n", __LINE__, con->http_status);
 			break;
 		case CON_STATE_ERROR: /* transient */
 
@@ -1876,6 +1973,8 @@ int connection_state_machine(server *srv, connection *con) {
 	}
 
 	switch(con->state) {
+	case CON_STATE_OFFOPENWAIT:
+		break;
 	case CON_STATE_READ_POST:
 	case CON_STATE_READ:
 	case CON_STATE_CLOSE:
@@ -1889,12 +1988,15 @@ int connection_state_machine(server *srv, connection *con) {
 		if (!chunkqueue_is_empty(con->write_queue) &&
 		    (con->is_writable == 0) &&
 		    (con->traffic_limit_reached == 0)) {
+			fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
 			fdevent_event_set(srv->ev, &(con->fde_ndx), con->fd, FDEVENT_OUT);
 		} else {
+			fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
 			fdevent_event_del(srv->ev, &(con->fde_ndx), con->fd);
 		}
 		break;
 	default:
+		fprintf(stderr, "[%d] connection_state_machine \n", __LINE__);
 		fdevent_event_del(srv->ev, &(con->fde_ndx), con->fd);
 		break;
 	}

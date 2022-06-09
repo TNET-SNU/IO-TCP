@@ -40,7 +40,7 @@ struct mtcp_filename_stat
 	char offload_fn[OFFLOAD_NAME_LIMIT];
 	uint64_t file_len;
 #if WHOLE_FSTAT
-	struct mtcp_stat sb;
+	struct mtcp_stat *sb;
 #endif
 };
 

@@ -178,8 +178,8 @@ RaiseOffloadOpenEvent(mtcp_manager_t mtcp, tcp_stream *stream)
 	fprintf(stderr, "[%d] RaiseOffloadOpenEvent \n", __LINE__);
 	if (stream->socket) {
 		fprintf(stderr, "[%d] RaiseOffloadOpenEvent \n", __LINE__);
-		// if (stream->socket->epoll & MTCP_EPOLLOFFOPEN) {
-		if (true) {
+		if (stream->socket->epoll & MTCP_EPOLLOFFOPEN) {
+		// if (true) {
 			fprintf(stderr, "[%d] RaiseOffloadOpenEvent \n", __LINE__);
 			AddEpollEvent(mtcp->ep, 
 					MTCP_EVENT_QUEUE, stream->socket, MTCP_EPOLLOFFOPEN);

@@ -1241,6 +1241,7 @@ URIHANDLER_FUNC(mod_webdav_subrequest_handler) {
 		switch (stat_cache_get_entry(srv, con, con->physical.path, &sce)) {
 		case HANDLER_ERROR:
 			if (errno == ENOENT) {
+				fprintf(stderr, "[%d] 404 Not found \n", __LINE__);
 				con->http_status = 404;
 				return HANDLER_FINISHED;
 			}
@@ -1544,6 +1545,7 @@ URIHANDLER_FUNC(mod_webdav_subrequest_handler) {
 			/* don't about it yet, unlink will fail too */
 			switch(errno) {
 			case ENOENT:
+				fprintf(stderr, "[%d] 404 Not found \n", __LINE__);
 				 con->http_status = 404;
 				 break;
 			default:
@@ -1579,6 +1581,7 @@ URIHANDLER_FUNC(mod_webdav_subrequest_handler) {
 				if (-1 == rmdir(con->physical.path->ptr)) {
 					switch(errno) {
 					case ENOENT:
+						fprintf(stderr, "[%d] 404 Not found \n", __LINE__);
 						con->http_status = 404;
 						break;
 					default:
@@ -1597,6 +1600,7 @@ URIHANDLER_FUNC(mod_webdav_subrequest_handler) {
 				con->http_status = 403;
 				break;
 			case ENOENT:
+				fprintf(stderr, "[%d] 404 Not found \n", __LINE__);
 				con->http_status = 404;
 				break;
 			default:
@@ -1668,6 +1672,7 @@ URIHANDLER_FUNC(mod_webdav_subrequest_handler) {
 			if (-1 == (fd = open(con->physical.path->ptr, O_WRONLY, WEBDAV_FILE_MODE))) {
 				switch (errno) {
 				case ENOENT:
+					fprintf(stderr, "[%d] 404 Not found \n", __LINE__);
 					con->http_status = 404; /* not found */
 					break;
 				default:
@@ -1892,6 +1897,7 @@ URIHANDLER_FUNC(mod_webdav_subrequest_handler) {
 			/* don't about it yet, unlink will fail too */
 			switch(errno) {
 			case ENOENT:
+				fprintf(stderr, "[%d] 404 Not found \n", __LINE__);
 				 con->http_status = 404;
 				 break;
 			default:
@@ -2055,6 +2061,7 @@ URIHANDLER_FUNC(mod_webdav_subrequest_handler) {
 		if (-1 == stat(con->physical.path->ptr, &st)) {
 			switch(errno) {
 			case ENOENT:
+				fprintf(stderr, "[%d] 404 Not found \n", __LINE__);
 				con->http_status = 404;
 				break;
 			}

@@ -2018,6 +2018,7 @@ main(int argc, char **argv) {
 
 					if ((con->state == CON_STATE_WRITE) &&
 					    (con->write_request_ts != 0)) {
+						fprintf(stderr, "[%d] CON_STATE_WRITE \n", __LINE__);
 #if 0
 						if (srv->cur_ts - con->write_request_ts > 60) {
 							log_error_write(srv, __FILE__, __LINE__, "sdd",

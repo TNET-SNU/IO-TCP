@@ -382,7 +382,10 @@ handler_t stat_cache_get_entry(server *srv, connection *con, buffer *name, stat_
 #ifdef DEBUG_STAT_CACHE
 	size_t i;
 #endif
-
+#ifdef USE_MTCP
+	struct mtcp_stat *mtcp_st;
+#endif
+	fprintf(stderr, "[%d] stat_cache_get_entry \n", __LINE__);
 	int file_ndx;
 	splay_tree *file_node = NULL;
 
@@ -425,6 +428,7 @@ handler_t stat_cache_get_entry(server *srv, connection *con, buffer *name, stat_
 			if (srv->srvconf.stat_cache_engine == STAT_CACHE_ENGINE_SIMPLE) {
 				if (sce->stat_ts == srv->cur_ts) {
 					*ret_sce = sce;
+					fprintf(stderr, "[%d] stat_cache_get_entry st_size %d\n", __LINE__,sce->st.st_size);
 					return HANDLER_GO_ON;
 				}
 			}
@@ -494,15 +498,20 @@ handler_t stat_cache_get_entry(server *srv, connection *con, buffer *name, stat_
 	 *
 	 * */
 #ifdef USE_MTCP
-	if (-1 == mtcp_offload_stat(srv->mctx, name->ptr, &st)) {
+	fprintf(stderr, "[%d] stat_cache_get_entry \n", __LINE__);
+	if (-1 == mtcp_offload_stat(srv->mctx, name->ptr, &mtcp_st)) {
+		fprintf(stderr, "[%d] stat_cache_get_entry \n", __LINE__);
 		return HANDLER_ERROR;
 	}
+	mtcpstat_to_stat(&st, mtcp_st);
 #else
+	fprintf(stderr, "[%d] stat_cache_get_entry \n", __LINE__);
 	if (-1 == stat(name->ptr, &st)) {
+		fprintf(stderr, "[%d] stat_cache_get_entry \n", __LINE__);
 		return HANDLER_ERROR;
 	}
 #endif
-
+	fprintf(stderr, "[%d] stat_cache_get_entry \n", __LINE__);
 
 	if (S_ISREG(st.st_mode)) {
 		/* fix broken stat/open for symlinks to reg files with appended slash on freebsd,osx */
@@ -511,11 +520,13 @@ handler_t stat_cache_get_entry(server *srv, connection *con, buffer *name, stat_
 			return HANDLER_ERROR;
 		}
 
+#ifndef USE_MTCP
 		/* try to open the file to check if we can read it */
 		if (-1 == (fd = open(name->ptr, O_RDONLY))) {
 			return HANDLER_ERROR;
 		}
 		close(fd);
+#endif
 	}
 
 	if (NULL == sce) {

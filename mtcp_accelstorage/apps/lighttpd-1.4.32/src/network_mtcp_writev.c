@@ -552,7 +552,6 @@ int network_write_chunkqueue_mtcp_offload_open(server *srv, connection *con)
 					log_error_write(srv, __FILE__, __LINE__, "ss", "offload open failed: ", strerror(errno));
 					return -1;
 				}
-
 			}
 			break;
 		}
@@ -665,10 +664,12 @@ int network_write_chunkqueue_mtcp_offload_write(server *srv, connection *con, in
 
 			if (c->file.fd < 0)
 			{
+				c->file.fd = con->filefd;
 				// log_error_write(srv, __FILE__, __LINE__, "ss", "no offload open");
 				// return -1;
-				fprintf(stderr, "no offload opened yet\n");
-				break;
+				// fprintf(stderr, "no offload opened yet\n");
+				// exit(1);
+				// break;
 			}
 
 			if ((r = mtcp_offload_write(srv->mctx, fd, c->file.fd, &c->offset, toSend)) < 0)

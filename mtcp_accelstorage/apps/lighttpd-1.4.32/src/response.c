@@ -655,6 +655,7 @@ handler_t http_response_prepare_filecheck(server *srv, connection *con) {
 				}
 
 				if (HANDLER_ERROR != stat_cache_get_entry(srv, con, con->physical.path, &sce)) {
+					fprintf(stderr, "[%d] stat_cache_get_entry Error %d \n", __LINE__, con->http_status);
 					found = S_ISREG(sce->st.st_mode);
 					break;
 				}

@@ -27,6 +27,8 @@ void
 offload_cleanup(mtcp_manager_t mtcp);
 int
 stat_to_mtcpstat(struct mtcp_stat * mtcp_stat, struct stat * _fc_stat);
+int
+mtcpstat_to_stat(struct stat * _fc_stat, struct mtcp_stat * mtcp_stat);
 /*----------------------------------------------------------------------------*/
 static inline int 
 mtcp_is_connected(mtcp_manager_t mtcp, tcp_stream *cur_stream)
@@ -1749,7 +1751,6 @@ mtcp_offload_open(mctx_t mctx, int sockid, const char *file_name)
 #if NO_FS_PERFTEST | INDEPENDENT_FSTAT
 	struct stat sb;
 #endif
-	struct mtcp_filename_stat mfs;
 	int ret = -1;
 
 	mtcp = GetMTCPManager(mctx);
@@ -1845,10 +1846,6 @@ mtcp_offload_open(mctx_t mctx, int sockid, const char *file_name)
 					offload_vars, offload_vars_link);
 	SBUF_UNLOCK(&sndvar->write_lock);
 
-	strcpy(mfs.offload_fn, file_name);
-	mfs.file_len = 0;
-	FnameStatHTInsert(mtcp->fnamestat_table, &mfs);
-
 	ret = offload_vars->fid;
 
 	if (ret >= 0 &&
@@ -1876,6 +1873,7 @@ mtcp_offload_close(mctx_t mctx, int sockid, int offload_fid)
 	struct tcp_send_vars *sndvar;
 	struct offload_vars *offload_vars, *_o;
 	int ret = -1;
+	struct mtcp_filename_stat _mfs;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
@@ -1929,6 +1927,11 @@ mtcp_offload_close(mctx_t mctx, int sockid, int offload_fid)
 		offload_vars->offload_flags |= OFFLOAD_FLAG_CLOSE;
 		ret = 0;
 	}
+
+	// TODO(taehyun): remove from fnamestat_table if there is no other connection using this file
+	UNUSED(_mfs);
+	// strcpy(_mfs.offload_fn, offload_vars->offload_fn);
+	// FnameStatHTRemove(mtcp->fnamestat_table, &_mfs);
 	
 	SBUF_UNLOCK(&sndvar->write_lock);
 
@@ -2024,10 +2027,12 @@ mtcp_offload_write(mctx_t mctx, int sockid,
 	}
 
 	if (ov->file_len == 0) {
-		if (-1 == mtcp_offload_fstat(mctx, sockid, offload_fid, &ov->sb)) {
-			SBUF_UNLOCK(&sndvar->write_lock);
-			return -1;
-		}
+		// struct mtcp_stat * _mtcp_st;
+		// if (-1 == mtcp_offload_fstat(mctx, sockid, offload_fid, &_mtcp_st)) {
+		// 	SBUF_UNLOCK(&sndvar->write_lock);
+		// 	return -1;
+		// }
+		// &ov->sb = 
 		ov->file_len = ov->sb.st_size;
 	}
 	if(off + len > ov->file_len) {
@@ -2126,7 +2131,7 @@ mtcp_offload_write(mctx_t mctx, int sockid,
 }
 /*----------------------------------------------------------------------------*/
 int
-mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct mtcp_stat* buf) {
+mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct mtcp_stat** pp_mtcp_stat) {
 	mtcp_manager_t mtcp;
 	socket_map_t socket;
 	tcp_stream *cur_stream;
@@ -2183,20 +2188,22 @@ mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct
 		errno = EBADF;
 		ret = -1;
 	} else if (offload_vars->sb.st_size == 0) {
+		TRACE_ERROR("mtcp_offload_fstat(%s) not received from the NIC yet.\n", offload_vars->offload_fn);		
+		errno = EBADF;
+		return -1;
 		if (-1 == stat(offload_vars->offload_fn, &_stat)) {
 			TRACE_ERROR("mtcp_offload_fstat() not received from the NIC yet and stat(%s) failed as well.\n", offload_vars->offload_fn);		
 			errno = EBADF;
 			return -1;
 		}
-		stat_to_mtcpstat(buf, &_stat);
+		stat_to_mtcpstat(*pp_mtcp_stat, &_stat);
 		ret = 0;
 	} else {
-		*buf = offload_vars->sb;
+		*pp_mtcp_stat = &(offload_vars->sb);
 		ret = 0;
 	}
 	
 	// SBUF_UNLOCK(&sndvar->write_lock);
-
 	TRACE_API("Stream %d: mtcp_offload_fstat() returning %d\n",
 			  cur_stream->id, ret);
 
@@ -2205,7 +2212,7 @@ mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct
 }
 /*----------------------------------------------------------------------------*/
 int
-mtcp_offload_stat(mctx_t mctx, const char *file_name, struct mtcp_stat* buf) {
+mtcp_offload_stat(mctx_t mctx, const char *file_name, struct mtcp_stat** pp_mtcp_stat) {
 	mtcp_manager_t mtcp;
 	struct mtcp_filename_stat mfs;
 	struct mtcp_filename_stat *_mfs;
@@ -2221,15 +2228,18 @@ mtcp_offload_stat(mctx_t mctx, const char *file_name, struct mtcp_stat* buf) {
 	strcpy(mfs.offload_fn, file_name);
 	_mfs = FnameStatHTSearch(mtcp->fnamestat_table, &mfs);
 	if (_mfs == NULL) {
+		TRACE_ERROR("mtcp_offload_fstat(%s) not received from the NIC yet.\n", file_name);		
+		errno = EBADF;
+		return -1;
 		if (-1 == stat(file_name, &_stat)) {
 			TRACE_ERROR("mtcp_offload_stat() not received from the NIC yet and stat(%s) failed as well.\n", file_name);		
 			errno = EBADF;
 			return -1;
 		}
-		stat_to_mtcpstat(buf, &_stat);
+		stat_to_mtcpstat(*pp_mtcp_stat, &_stat);
 		ret = 0;
 	} else {
-		buf->st_size = _mfs->file_len;
+		*pp_mtcp_stat = _mfs->sb;
 		ret = 0;
 	}
 	TRACE_API("Stream %d: mtcp_offload_stat() returning %d\n",
@@ -2272,5 +2282,23 @@ stat_to_mtcpstat(struct mtcp_stat * mtcp_stat, struct stat * _fc_stat){
 	mtcp_stat->_st_atime = (int64_t)_fc_stat->st_atime;
 	mtcp_stat->_st_mtime = (int64_t)_fc_stat->st_mtime;
 	mtcp_stat->_st_ctime = (int64_t)_fc_stat->st_ctime;
+	return ret;
+}
+/*---------------------------------------------------------------------------*/
+int
+mtcpstat_to_stat(struct stat * _fc_stat, struct mtcp_stat * mtcp_stat){
+	int ret = 0;
+	_fc_stat->st_ino = (ino_t)mtcp_stat->st_ino;
+	_fc_stat->st_mode = (mode_t)mtcp_stat->st_mode;
+	_fc_stat->st_nlink = (nlink_t)mtcp_stat->st_nlink;
+	_fc_stat->st_uid = (uid_t)mtcp_stat->st_uid;
+	_fc_stat->st_gid = (gid_t)mtcp_stat->st_gid;
+	_fc_stat->st_rdev = (dev_t)mtcp_stat->st_rdev;
+	_fc_stat->st_size = (off_t)mtcp_stat->st_size;
+	_fc_stat->st_blksize = (long)mtcp_stat->st_blksize;
+	_fc_stat->st_blocks = (blkcnt_t)mtcp_stat->st_blocks;
+	_fc_stat->st_atime = (time_t)mtcp_stat->_st_atime;
+	_fc_stat->st_mtime = (time_t)mtcp_stat->_st_mtime;
+	_fc_stat->st_ctime = (time_t)mtcp_stat->_st_ctime;
 	return ret;
 }
