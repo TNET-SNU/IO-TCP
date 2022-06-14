@@ -38,7 +38,7 @@ CreateHashtable(unsigned int (*hashfn) (const void *), // key function
 #if USE_CCP
 	if (IS_FLOW_TABLE(hashfn) || IS_SID_TABLE(hashfn)) {
 #else
-	if (IS_FLOW_TABLE(hashfn) || IS_FnameStat_TABLE(hashfn)) {
+	if (IS_FLOW_TABLE(hashfn)) {
 #endif
 		ht->ht_table = calloc(bins, sizeof(hash_bucket_head));
 		if (!ht->ht_table) {
@@ -59,6 +59,22 @@ CreateHashtable(unsigned int (*hashfn) (const void *), // key function
 		/* init the tables */
 		for (i = 0; i < bins; i++)
 			TAILQ_INIT(&ht->lt_table[i]);
+	} else if (IS_FnameStat_TABLE(hashfn)) {
+		fprintf(stderr, "[%d] CreateHashtable\n",__LINE__);
+		ht->ft_table = calloc(bins, sizeof(fname_bucket_head));
+		if (!ht->ft_table) {
+			TRACE_ERROR("calloc: CreateHashtable bins!\n");
+			free(ht);
+			return 0;
+		}
+		/* init the tables */
+		for (i = 0; i < bins; i++)
+			TAILQ_INIT(&ht->ft_table[i]);
+	} else {
+		fprintf(stderr, "[%d] CreateHashtable\n",__LINE__);
+		TRACE_ERROR("CreateHashtable failed!\n");
+		free(ht);
+		return 0;
 	}
 
 	return ht;
@@ -69,8 +85,10 @@ DestroyHashtable(struct hashtable *ht)
 {
 	if (IS_FLOW_TABLE(ht->hashfn))
 		free(ht->ht_table);
-	else /* IS_LISTEN_TABLE(ht->hashfn) */
+	else if (IS_LISTEN_TABLE(ht->hashfn))
 		free(ht->lt_table);
+	else if (IS_FnameStat_TABLE(ht->hashfn))
+		free(ht->ft_table);
 	free(ht);
 }
 /*----------------------------------------------------------------------------*/
@@ -136,9 +154,9 @@ FnameStatHTInsert(struct hashtable *ht, void *it)
 	assert(ht);
 
 	idx = ht->hashfn(item);
-	assert(idx >=0 && idx < NUM_BINS_FLOWS);
+	assert(idx >=0 && idx < NUM_BINS_OffloadVars);
 
-	TAILQ_INSERT_TAIL(&ht->ht_table[idx], item, he_link);
+	TAILQ_INSERT_TAIL(&ht->ft_table[idx], item, he_link);
 	
 	return 0;
 }
@@ -146,11 +164,11 @@ FnameStatHTInsert(struct hashtable *ht, void *it)
 void* 
 FnameStatHTRemove(struct hashtable *ht, void *it)
 {
-	hash_bucket_head *head;
+	fname_bucket_head *head;
 	struct mtcp_filename_stat *item = (struct mtcp_filename_stat *)it;
 	int idx = ht->hashfn(item);
 
-	head = &ht->ht_table[idx];
+	head = &ht->ft_table[idx];
 	TAILQ_REMOVE(head, item, he_link);	
 
 	return (item);
@@ -159,20 +177,21 @@ FnameStatHTRemove(struct hashtable *ht, void *it)
 void * 
 FnameStatHTSearch(struct hashtable *ht, const void *it)
 {
+	int tmp_search_num = 0;
 	int idx;
 	const struct mtcp_filename_stat *item = (const struct mtcp_filename_stat *)it;
 	struct mtcp_filename_stat *walk;
-	hash_bucket_head *head = NULL;
+	fname_bucket_head *head = NULL;
 
 	idx = ht->hashfn(item);
-
-	head = &ht->ht_table[ht->hashfn(item)];
-	TAILQ_FOREACH(walk, head, he_link) {
+	head = &ht->ft_table[idx];
+	// TAILQ_FOREACH(walk, head, he_link) {
+	for ((walk) = ((head)->tqh_first); (walk); (walk) = ((walk)->he_link.tqe_next)) {
+		tmp_search_num++;
 		if (ht->eqfn(walk, item)) {
 			return walk;
 		}
 	}
-
 	UNUSED(idx);
 	return NULL;
 }

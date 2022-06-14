@@ -19,6 +19,11 @@ typedef struct list_bucket_head {
 	struct tcp_listener **tqh_last;
 } list_bucket_head;
 
+typedef struct fname_bucket_head {
+	struct mtcp_filename_stat *tqh_first;
+	struct mtcp_filename_stat **tqh_last;
+} fname_bucket_head;
+
 /* hashtable structure */
 struct hashtable {
 	uint32_t bins;
@@ -26,6 +31,7 @@ struct hashtable {
 	union {
 		hash_bucket_head *ht_table;
 		list_bucket_head *lt_table;
+		fname_bucket_head *ft_table;
 	};
 
 	// functions
@@ -39,7 +45,6 @@ struct hashtable *CreateHashtable(unsigned int (*hashfn) (const void *),
 					       const void *),
 				  int bins);
 void DestroyHashtable(struct hashtable *ht);
-
 
 int StreamHTInsert(struct hashtable *ht, void *);
 void* StreamHTRemove(struct hashtable *ht, void *);

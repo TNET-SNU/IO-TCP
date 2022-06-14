@@ -31,7 +31,7 @@ struct offload_vars
 	char offload_fn[OFFLOAD_NAME_LIMIT];
 	uint64_t file_len;
 
-	struct mtcp_stat sb;
+	struct mtcp_stat *sb;
 };
 
 struct mtcp_filename_stat

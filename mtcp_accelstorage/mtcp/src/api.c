@@ -1834,7 +1834,7 @@ mtcp_offload_open(mctx_t mctx, int sockid, const char *file_name)
 
 #if NO_FS_PERFTEST | INDEPENDENT_FSTAT
 	offload_vars->file_len = sb.st_size;
-	offload_vars->sb = sb;
+	offload_vars->sb = &sb;
 #elif NICTOHOST_FSTAT
 #endif
 
@@ -2033,7 +2033,7 @@ mtcp_offload_write(mctx_t mctx, int sockid,
 		// 	return -1;
 		// }
 		// &ov->sb = 
-		ov->file_len = ov->sb.st_size;
+		ov->file_len = ov->sb->st_size;
 	}
 	if(off + len > ov->file_len) {
 		TRACE_ERROR("Offload write goes beyond the file length (off(%d) + len(%d) > ov->file_len(%d))\n",(int)off,(int)len,(int)ov->file_len);
@@ -2187,7 +2187,7 @@ mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct
 		TRACE_ERROR("File not open, getting stats failed\n");
 		errno = EBADF;
 		ret = -1;
-	} else if (offload_vars->sb.st_size == 0) {
+	} else if (offload_vars->sb->st_size == 0) {
 		TRACE_ERROR("mtcp_offload_fstat(%s) not received from the NIC yet.\n", offload_vars->offload_fn);		
 		errno = EBADF;
 		return -1;
@@ -2199,7 +2199,7 @@ mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct
 		stat_to_mtcpstat(*pp_mtcp_stat, &_stat);
 		ret = 0;
 	} else {
-		*pp_mtcp_stat = &(offload_vars->sb);
+		*pp_mtcp_stat = offload_vars->sb;
 		ret = 0;
 	}
 	
@@ -2228,7 +2228,7 @@ mtcp_offload_stat(mctx_t mctx, const char *file_name, struct mtcp_stat** pp_mtcp
 	strcpy(mfs.offload_fn, file_name);
 	_mfs = FnameStatHTSearch(mtcp->fnamestat_table, &mfs);
 	if (_mfs == NULL) {
-		TRACE_ERROR("mtcp_offload_fstat(%s) not received from the NIC yet.\n", file_name);		
+		TRACE_ERROR("mtcp_offload_stat(%s) not received from the NIC yet.\n", file_name);		
 		errno = EBADF;
 		return -1;
 		if (-1 == stat(file_name, &_stat)) {
@@ -2238,9 +2238,14 @@ mtcp_offload_stat(mctx_t mctx, const char *file_name, struct mtcp_stat** pp_mtcp
 		}
 		stat_to_mtcpstat(*pp_mtcp_stat, &_stat);
 		ret = 0;
+		if ((*pp_mtcp_stat)->st_size == 0)
+			fprintf(stderr, "[%d] mtcp_offload_stat(%s), mtcp_stat.st_size:%ld filelen:%ld \n", __LINE__, file_name, (*pp_mtcp_stat)->st_size, _mfs->file_len);
 	} else {
+		// TRACE_ERROR("mtcp_offload_stat(%s) succeeded.\n", file_name);		
 		*pp_mtcp_stat = _mfs->sb;
 		ret = 0;
+		if ((*pp_mtcp_stat)->st_size == 0)
+			fprintf(stderr, "[%d] mtcp_offload_stat(%s), mtcp_stat.st_size:%ld filelen:%ld \n", __LINE__, file_name, (*pp_mtcp_stat)->st_size, _mfs->file_len);
 	}
 	TRACE_API("Stream %d: mtcp_offload_stat() returning %d\n",
 			  cur_stream->id, ret);

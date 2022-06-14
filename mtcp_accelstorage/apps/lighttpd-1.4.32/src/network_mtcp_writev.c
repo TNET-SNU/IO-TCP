@@ -657,7 +657,10 @@ int network_write_chunkqueue_mtcp_offload_write(server *srv, connection *con, in
 
 			if (offset > sce->st.st_size)
 			{
-				log_error_write(srv, __FILE__, __LINE__, "sb", "file was shrinked:", c->file.name);
+				// log_error_write(srv, __FILE__, __LINE__, "sb", "file was shrinked (offset:%d st_size:%d c->offset:%d toSend:%d )",
+				// 	c->file.name, offset, st_size, c->offset, toSend);
+				fprintf(stderr, "[%d] file was shrinked:%s (offset:%d st_size:%d c->offset:%d toSend:%d)\n",
+					__LINE__, c->file.name->ptr, offset, sce->st.st_size, c->offset, toSend);
 
 				return -1;
 			}

@@ -348,10 +348,10 @@ mtcp_epoll_ctl(mctx_t mctx, int epid,
 		socket->ep_data = event->data;
 		socket->epoll = events;
 
-		fprintf(stderr,"Adding epoll socket %d(type %d) ET: %u, IN: %u, OUT: %u, OFFOPEN: %u\n", 
-				socket->id, socket->socktype, socket->epoll & MTCP_EPOLLET, 
-				socket->epoll & MTCP_EPOLLIN, socket->epoll & MTCP_EPOLLOUT,
-				socket->epoll & MTCP_EPOLLOFFOPEN);
+		// fprintf(stderr,"Adding epoll socket %d(type %d) ET: %u, IN: %u, OUT: %u, OFFOPEN: %u\n", 
+		// 		socket->id, socket->socktype, socket->epoll & MTCP_EPOLLET, 
+		// 		socket->epoll & MTCP_EPOLLIN, socket->epoll & MTCP_EPOLLOUT,
+		// 		socket->epoll & MTCP_EPOLLOFFOPEN);
 		if (socket->socktype == MTCP_SOCK_STREAM) {
 			RaisePendingStreamEvents(mtcp, ep, socket);
 		} else if (socket->socktype == MTCP_SOCK_PIPE) {

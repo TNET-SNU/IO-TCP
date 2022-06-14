@@ -91,19 +91,6 @@ stat_to_mtcpstat(struct mtcp_stat * mtcp_stat, struct stat * _fc_stat){
 	mtcp_stat->_st_atime = (int64_t)_fc_stat->st_atime;
 	mtcp_stat->_st_mtime = (int64_t)_fc_stat->st_mtime;
 	mtcp_stat->_st_ctime = (int64_t)_fc_stat->st_ctime;
-	fprintf(stderr, "[mtcpstat_to_stat] mtcp_stat / stat\n");
-	fprintf(stderr, "st_ino: 	%ld / %ld \n", mtcp_stat->_st_ino, _fc_stat->st_ino);
-	fprintf(stderr, "st_mode: 	%d / %d \n", mtcp_stat->_st_mode, _fc_stat->st_mode);
-	fprintf(stderr, "st_nlink: 	%ld / %ld \n", mtcp_stat->_st_nlink, _fc_stat->st_nlink);
-	fprintf(stderr, "st_uid: 	%d / %d \n", mtcp_stat->_st_uid, _fc_stat->st_uid);
-	fprintf(stderr, "st_gid: 	%d / %d \n", mtcp_stat->_st_gid, _fc_stat->st_gid);
-	fprintf(stderr, "st_rdev: 	%ld / %ld \n", mtcp_stat->_st_rdev, _fc_stat->st_rdev);
-	fprintf(stderr, "st_size: 	%ld / %ld \n", mtcp_stat->_st_size, _fc_stat->st_size);
-	fprintf(stderr, "st_blksize:%ld / %ld \n", mtcp_stat->_st_blksize, _fc_stat->st_blksize);
-	fprintf(stderr, "st_blocks:	%ld / %ld \n", mtcp_stat->_st_blocks, _fc_stat->st_blocks);
-	fprintf(stderr, "st_atime: 	%ld / %ld \n", mtcp_stat->_st_atime, _fc_stat->st_atime);
-	fprintf(stderr, "st_mtime: 	%ld / %ld \n", mtcp_stat->_st_mtime, _fc_stat->st_mtime);
-	fprintf(stderr, "st_ctime: 	%ld / %ld \n", mtcp_stat->_st_ctime, _fc_stat->st_ctime);
 	return ret;
 }
 /*---------------------------------------------------------------------------*/
@@ -509,7 +496,7 @@ GenerateTSOPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int hdrlen,
 		fprintf(stderr, "FAILED TO ATTACH EXTERNAL MBUF\n");
 		exit(-1);
 	}
-}
+  }
 
   iph->total_length     = htons(hdrlen + len - ETHERNET_HEADER_LEN);
   iph->type_of_service  = 0;  /* FIX ME: WHY?? */
@@ -653,17 +640,6 @@ SendOpenEchoPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int offload_f
 #if WHOLE_FSTAT
 	p_len = snprintf(p, 128, "OPEN %d %d ", offload_fid, offload_open_status);
 	memcpy(p + p_len, fc->fc_stat, sizeof(struct mtcp_stat));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %d\n", __LINE__, p_len);
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+1+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+2+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+3+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+4+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+5+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+6+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+7+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+8+p_len));
-	fprintf(stderr, "[%d] SendOpenEchoPacket %x \n", __LINE__, *(p+9+p_len));
 
 	p_len += sizeof(struct mtcp_stat);
 #else
@@ -684,7 +660,6 @@ SendOpenEchoPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int offload_f
 
 	/* mark it special */
 	iph->type_of_service = 4;
-	// fprintf(stderr, "[%d] hdrlen %d p_len %d sizeof(struct stat) %d \n",__LINE__, hdrlen, p_len, sizeof(struct stat));
 	iph->total_length = htons(hdrlen + p_len - ETHERNET_HEADER_LEN);
 
 	/* swap IP addrs */

@@ -405,7 +405,7 @@ URIHANDLER_FUNC(mod_staticfile_subrequest) {
 
 
 	if (con->conf.log_request_handling) {
-		log_error_write(srv, __FILE__, __LINE__,  "s",  "-- handling file as static file");
+		log_error_write(srv, __FILE__, __LINE__,  "s",  "-- handling file as static file 1");
 	}
 
 	if (HANDLER_ERROR == stat_cache_get_entry(srv, con, con->physical.path, &sce)) {

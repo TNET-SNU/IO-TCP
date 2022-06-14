@@ -1501,7 +1501,7 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 	char p[128];
 	int offload_fid, offload_open_status, offload_fsize, stat_offset;
 	struct offload_vars *ov, *_o;
-	struct mtcp_filename_stat mfs;
+	struct mtcp_filename_stat *mfs;
 
 	memcpy(p, payload, payloadlen);
 
@@ -1516,16 +1516,16 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 
 	if (memcmp(p, "OPEN", 4) == 0) {
 #if WHOLE_FSTAT
-		fprintf(stderr, "[%d] ProccessOffloadEchoPacket \n", __LINE__);
 		/* TODO: Parse OPEN echo packet (either OPEN failed or succeeded) */
-		if (!sscanf(p + 4, "%d %d %n", &offload_fid, &offload_open_status, &stat_offset) == 1) {
+		if (!sscanf(p + 4, "%d %d%n", &offload_fid, &offload_open_status, &stat_offset) == 1) {
 			TRACE_ERROR("Received weird open echo from NIC %s (%d)\n", p, payloadlen);
 			return FALSE;
 		}
-		if (payloadlen != 4 + stat_offset + sizeof(struct mtcp_stat)) {
+		if (payloadlen != 5 + stat_offset + sizeof(struct mtcp_stat)) {
 			TRACE_ERROR("Received weird open echo from NIC %s (%d, %d, %d)\n", p, stat_offset, payloadlen, (int)sizeof(struct mtcp_stat));
 			return FALSE;
 		}
+		// TRACE_ERROR("Received correct open echo from NIC %s (%d, %d, %d)\n", p, stat_offset, payloadlen, (int)sizeof(struct mtcp_stat));
 #else
 		if (!sscanf(p + 4, "%d %d %d%n", &offload_fid, &offload_open_status, &offload_fsize, &stat_offset) == 1) {
 			TRACE_ERROR("Received weird open echo from NIC %s (%d)\n", p, payloadlen);
@@ -1545,20 +1545,23 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 			}
 		}
 #if WHOLE_FSTAT
-		memcpy(&ov->sb, p + 4 + stat_offset, sizeof(struct mtcp_stat));
-		offload_fsize = ov->sb.st_size;
-		mfs.sb = &ov->sb;	
+		mfs = (struct mtcp_filename_stat *)malloc(sizeof(struct mtcp_filename_stat));
+		ov->sb = (struct mtcp_stat *)malloc(sizeof(struct mtcp_stat));	
+		memcpy(ov->sb, p + 5 + stat_offset, sizeof(struct mtcp_stat));
+		offload_fsize = ov->sb->st_size;
+		mfs->sb = ov->sb;
+		if (mfs->sb->st_size == 0)
+			fprintf(stderr, "[%d] ProccessOffloadEchoPacket(%s), mfs->sb->st_size:%ld \n", __LINE__, ov->offload_fn, mfs->sb->st_size);
 #else
-		ov->sb.st_size = (off_t)offload_fsize;
+		ov->sb->st_size = (off_t)offload_fsize;
 #endif
 		ov->file_len = (uint64_t)offload_fsize;
 		SBUF_UNLOCK(&cur_stream->sndvar->write_lock);
-		strcpy(mfs.offload_fn, ov->offload_fn);
-		mfs.file_len = (uint64_t)offload_fsize;
-		fprintf(stderr,"[%d] FnameStatHTInsert\n",__LINE__);
-		if (FnameStatHTInsert(mtcp->fnamestat_table, &mfs) < 0)
+		strcpy(mfs->offload_fn, ov->offload_fn);
+		mfs->file_len = (uint64_t)offload_fsize;
+		if (FnameStatHTInsert(mtcp->fnamestat_table, mfs) < 0)
 			return FALSE;
-		fprintf(stderr,"[%d] FnameStatHTInsert\n",__LINE__);
+		FnameStatHTSearch(mtcp->fnamestat_table, mfs);
 
 		RaiseOffloadOpenEvent(mtcp, cur_stream);
 		return TRUE;
