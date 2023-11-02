@@ -1,0 +1,23 @@
+Setting up Network Address Translation (NAT) on the host. 
+This way, Bluefield2 can access the internet by having its traffic forwarded through the host. Here’s how you could set up NAT on the host:
+
+1. Enable IP Forwarding on the host:
+sudo sysctl -w net.ipv4.ip_forward=1 # enable IP forwarding temporarily
+
+2. Configure iptables on the host:
+sudo iptables -t nat -A POSTROUTING -s PrivateSubnet -o ExternalInterface -j MASQUERADE # Create a NAT rule to masquerade traffic from Bluefield2 as if it's coming from the server
+(Replace PrivateSubnet with the IP range of your private subnet (e.g., 192.168.100.0/24), and ExternalInterface with the name of the network interface on the host that is connected to the internet (e.g., eth0).)
+
+3. Set Default Gateway on the Bluefield2:
+sudo ip route add default via ServerB_PrivateIP # Configure the Bluefield2 to use the host as its default gateway
+(Replace Host_PrivateIP with the private IP address of the host in your private subnet.)
+
+* Persist Configuration:
+To ensure the iptables configuration persists across reboots, you might want to save the current iptables configuration and restore it on startup. On a Debian-based system, you can use the iptables-persistent package:
+On the host:
+sudo apt-get install iptables-persistent
+sudo netfilter-persistent save
+sudo netfilter-persistent reload
+On the Bluefield2
+Edit the /etc/network/interfaces file and add the following line to the configuration for your network interface:
+gateway Host_PrivateIP
