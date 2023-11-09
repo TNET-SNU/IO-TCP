@@ -5,7 +5,7 @@ https://support.mellanox.com/s/article/howto-configure-nvme-over-fabrics--nvme-o
 ## Host
 
 1. Install MLNX OFED with the following flags
-$ ./mlnxofedinstall --bluefield --add-kernel-support --with-nvmf --force --upstream-libs --dpdk --without-fw-update
+$ ./mlnxofedinstall --with-nvmf --force --upstream-libs ([optional] --without-fw-update --add-kernel-support)
 
 2. Set "num_p2p_queues" module parameter when loading the nvme module. This module parameter defines the number of extra I/O queues that each NVMe device will try to create for peer-to-peer data transfer.
 $ modprobe nvme num_p2p_queues=1
@@ -32,17 +32,20 @@ $ echo 1 > /sys/kernel/config/nvmet/subsystems/testsubsystem/attr_offload
 $ mkdir /sys/kernel/config/nvmet/subsystems/testsubsystem/namespaces/1
 $ echo -n /dev/nvme0n1 > /sys/kernel/config/nvmet/subsystems/testsubsystem/namespaces/1/device_path
 $ echo 1 > /sys/kernel/config/nvmet/subsystems/testsubsystem/namespaces/1/enable
+Repeat the aboves for all NVMes you want to offload. 
 $ mkdir /sys/kernel/config/nvmet/ports/1
 $ echo 4420 > /sys/kernel/config/nvmet/ports/1/addr_trsvcid
 $ echo 10.0.25.10 > /sys/kernel/config/nvmet/ports/1/addr_traddr
 $ echo "rdma" > /sys/kernel/config/nvmet/ports/1/addr_trtype
 $ echo "ipv4" > /sys/kernel/config/nvmet/ports/1/addr_adrfam
+Repeat the following one for all NVMes you want to offload. 
 $ ln -s /sys/kernel/config/nvmet/subsystems/testsubsystem/ /sys/kernel/config/nvmet/ports/1/subsystems/testsubsystem
 
 ## NIC
 
 1. Install MLNX OFED with the following flags
 $ ./mlnxofedinstall --bluefield --add-kernel-support --with-nvmf --force --upstream-libs --dpdk --without-fw-update
+Bluefield OS with bfb installation may already have the OFED driver, please check it. (you don't need to install by yourself)
 
 4. Set ip on the port
 $ ifconfig enp3s0f0 10.0.25.100/24 up
