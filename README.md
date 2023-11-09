@@ -60,6 +60,8 @@
     export RTE_SDK=[DPDK installation path] (i.e. /home/username/dpdk-20.05)
     export RTE_TARGET=[DPDK target environment] (i.e. x86_64-native-linuxapp-gcc)
     ```
+- Edit hard-coded MAC address
+  - In host_stack/mtcp/src/ip_out.c:195~200, Hard-coded SmartNIC MAC address needs to be changed.
 - Build mtcp
     ```
     make all -j
