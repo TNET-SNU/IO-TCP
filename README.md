@@ -9,15 +9,16 @@
     - mtcp doesn't support later version of DPDK where target specified build is depreciated.
     - Please check that CONFIG_RTE_LIBRTE_MLX5_PMD option has been enabled in dpdk/config/common_base which is disabled by default.
   - Run a script for environment setup
-		``` 
-		cd ./IO-TCP/host_stack
-		./setup_mtcp_dpdk_env.sh [dpdk path] (i.e. 		/home/username/dpdk/)
-		# select a proper target. (i.e. x86_64-native-linuxapp-gcc)
-		```
+  ``` 
+  cd ./IO-TCP/host_stack
+  ./setup_mtcp_dpdk_env.sh [dpdk path] (i.e. 		/home/username/dpdk/)
+  # select a proper target. (i.e. x86_64-native-linuxapp-gcc)
+  ```
 * NIC-side
   - Download DPDK-20.05 (https://github.com/DPDK/dpdk.git)
   - Build DPDK-20.05 with `usertools/dpdk-setup.sh`
     - In DPDK setup prompt, select a proper target. (i.e. arm64-bluefield-linuxapp-gcc)
+  - OS installation on NIC using bfb images may already have DPDK installed, which cannot be reinstalled.
 
 ### Mellanox OFED
 - Install Mellanox OFED on both the host and the NIC
