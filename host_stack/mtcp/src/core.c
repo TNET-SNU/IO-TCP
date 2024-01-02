@@ -1399,7 +1399,7 @@ mtcp_create_context(int cpu)
 	/* Wake up mTCP threads (wake up I/O threads) */
 	if (current_iomodule_func == &dpdk_module_func) {
 		int master;
-		master = rte_get_master_lcore();
+		master = rte_get_main_lcore();
 		
 		if (master == whichCoreID(cpu)) {
 			//: lcore_config[master].ret = 0;
@@ -1720,7 +1720,7 @@ mtcp_destroy()
 {
 	int i;
 #ifndef DISABLE_DPDK
-	int master = rte_get_master_lcore();
+	int master = rte_get_main_lcore();
 #endif
 	/* wait until all threads are closed */
 	for (i = 0; i < num_cpus; i++) {

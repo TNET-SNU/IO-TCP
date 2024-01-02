@@ -21,6 +21,7 @@
 #include <math.h>
 /* for retrieving rte version(s) */
 #include <rte_version.h>
+#include <rte_eal.h>
 #endif /* DISABLE_DPDK */
 /* for TRACE_* */
 #include "debug.h"
@@ -48,7 +49,7 @@
 /*----------------------------------------------------------------------------*/
 io_module_func *current_iomodule_func = &dpdk_module_func;
 #ifndef DISABLE_DPDK
-enum rte_proc_type_t eal_proc_type_detect(void);
+enum rte_proc_type_t rte_eal_process_type(void);
 /**
  * DPDK's RTE consumes some huge pages for internal bookkeeping.
  * Therefore, it is not always safe to reserve the exact amount
@@ -353,11 +354,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 			exit(EXIT_FAILURE);
 		}
 		/* give me the count of 'detected' ethernet ports */
-#if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)
-		num_devices = rte_eth_dev_count();
-#else
 		num_devices = rte_eth_dev_count_avail();
-#endif
 		if (num_devices == 0) {
 			TRACE_ERROR("No Ethernet port!\n");
 			exit(EXIT_FAILURE);
@@ -460,7 +457,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		}
 #endif
 		/* check if process is primary or secondary */
-		CONFIG.multi_process_is_master = (eal_proc_type_detect() == RTE_PROC_PRIMARY) ?
+		CONFIG.multi_process_is_master = (rte_eal_process_type() == RTE_PROC_PRIMARY) ?
 			1 : 0;
 		
 #endif /* !DISABLE_DPDK */

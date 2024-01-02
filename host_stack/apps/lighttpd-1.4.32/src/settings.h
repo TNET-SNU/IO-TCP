@@ -21,6 +21,7 @@
 #if defined HAVE_LIBMTCP && (HAVE_LIBPSIO | HAVE_LIBDPDK | HAVE_NETMAP)
 #define USE_MTCP
 #endif
+#define USE_MTCP
 /**
  * max size of a buffer which will just be reset
  * to ->used = 0 instead of really freeing the buffer

@@ -65,46 +65,24 @@ AC_CHECK_FUNCS([bzero getpagesize gettimeofday memmove memset munmap select sock
 
 # Reset DPDK to 0
 AC_SUBST(DPDK, 0)
-# Reset enforcement value
-AC_SUBST(ENFORCE_RX_IDLE, 0)
-AC_SUBST(RX_IDLE_THRESH, 0)
-# Reset DPDK's LRO to 0
-AC_SUBST(LRO, 0)
-# Reset PSIO to 0
-AC_SUBST(PSIO, 0)
-# Reset ONVM to 0
-AC_SUBST(ONVM, 0)
-# Reset NETMAP to 0
-AC_SUBST(NETMAP, 0)
-# Reset HWCSUM to 1
-AC_SUBST(HWCSUM, 1)
+# ... other resets ...
 
-# Check dpdk-17.08 path (lib & inc)
-AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-17.08 install root])
-if test "$with_dpdk_lib" != ""
-then
-        AC_SUBST(DPDKLIBPATH, $with_dpdk_lib)
-	AC_SUBST(DPDK, 1)
-	AC_ARG_WITH(stuff, [  --with-rx-idle[=ARG]	how much idle cycles needed before enforcing timeout (dpdk-only)])
-	if test "$with_rx_idle" != ""
-	then
-		AC_SUBST(ENFORCE_RX_IDLE, 1)
-		AC_SUBST(RX_IDLE_THRESH, $with_rx_idle)
-	fi
+# Check for DPDK using pkg-config
+AC_ARG_WITH([dpdk-lib],
+    AS_HELP_STRING([--with-dpdk-lib],[Enable DPDK support using pkg-config]),
+    [use_dpdk_lib=yes],
+    [use_dpdk_lib=no])
+
+if test "$use_dpdk_lib" = "yes"; then
+    PKG_CHECK_MODULES([DPDK], [libdpdk], 
+        [AC_SUBST(DPDK, 1)
+         CFLAGS="$CFLAGS $DPDK_CFLAGS"
+         LIBS="$LIBS $DPDK_LIBS"],
+        [AC_MSG_ERROR([DPDK not found])])
 fi
 AM_CONDITIONAL([DPDK], [test x$DPDK = x1])
 
-dnl Example of default-disabled feature
-AC_ARG_ENABLE([lro],
-	AS_HELP_STRING([--enable-lro], [Enable dpdk lro (for relevant NICs)]))
-
-if test "$with_dpdk_lib" != ""
-then
-	if test "x$enable_lro" = "xyes"
-	then
-		AC_SUBST(LRO, 1)
-	fi
-fi
+# ... other checks ...
 
 dnl Example of default-disabled feature
 AC_ARG_ENABLE([ccp],
@@ -163,8 +141,6 @@ fi
 AM_INIT_AUTOMAKE(mtcp, 3)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT(mtcp/src/Makefile)
-AC_OUTPUT(apps/example/Makefile)
-AC_OUTPUT(apps/perf/Makefile)
 AC_OUTPUT(util/Makefile)
 AC_OUTPUT(io_engine/lib/Makefile)
 

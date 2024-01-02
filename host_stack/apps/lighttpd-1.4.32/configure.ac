@@ -8,7 +8,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_CANONICAL_TARGET
 
-AM_INIT_AUTOMAKE([-Wall -Wportability -Wno-override foreign dist-bzip2 tar-ustar])
+AM_INIT_AUTOMAKE([-Wall -Wportability -Wno-override -Wno-implicit-fallthrough foreign dist-bzip2 tar-ustar])
 
 dnl enable with --enable-silent-rules or make V=0 (needs automake >= 1.11)
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES])
@@ -681,26 +681,20 @@ AC_SUBST(LIBPSIO_LIBS)
 
 AC_MSG_CHECKING(for dpdk support)
 AC_ARG_WITH(libdpdk,
-    AC_HELP_STRING([--with-libdpdk@<:@=PATH@:>@],[Include libdpdk support in PATH/include and PATH/lib]),
+    AC_HELP_STRING([--with-libdpdk],[Include libdpdk support using pkg-config]),
     [WITH_LIBDPDK=$withval],[WITH_LIBDPDK=no])
 
-LIBDPDK_CFLAGS=""
-LIBDPDK_LIBS=""
-
 if test "$WITH_LIBDPDK" != "no"; then
-#	DPDK_MACHINE_FLAGS=`cat $WITH_LIBDPDK/include/cflags.txt`
-#	LIBDPDK_CFLAGS="$DPDK_MACHINE_FLAGS -I$WITH_LIBDPDK/include/"
-	LIBDPDK_LDFLAGS=`cat $WITH_LIBDPDK/lib/ldflags.txt`
-	LIBDPDK_LIBS="-L$WITH_LIBDPDK/lib/ -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic -Wl,-lnuma -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,$LIBDPDK_LDFLAGS"
-	CFLAGS="${CFLAGS} ${LIBDPDK_CFLAGS}"
-	AC_DEFINE([HAVE_LIBDPDK], [1], [libdpdk support])
-	AC_MSG_RESULT(yes)
-else
-	AC_MSG_RESULT(no)
+    PKG_CHECK_MODULES([DPDK], [libdpdk], 
+        [AC_DEFINE([HAVE_LIBDPDK], [1], [libdpdk support])
+         CFLAGS="$CFLAGS $DPDK_CFLAGS"
+         LIBS="$LIBS $DPDK_LIBS"
+         AC_MSG_RESULT(yes)],
+        [AC_MSG_RESULT(no)])
 fi
 
-AC_SUBST(LIBDPDK_CFLAGS)
-AC_SUBST(LIBDPDK_LIBS)
+AC_SUBST(DPDK_CFLAGS)
+AC_SUBST(DPDK_LIBS)
 
 AC_MSG_CHECKING(for onvm support)
 AC_ARG_WITH(libonvm,

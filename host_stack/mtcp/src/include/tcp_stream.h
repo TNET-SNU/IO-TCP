@@ -31,7 +31,12 @@ struct offload_vars
 	char offload_fn[OFFLOAD_NAME_LIMIT];
 	uint64_t file_len;
 
+
+#if NO_FS_PERFTEST | INDEPENDENT_FSTAT
+	struct stat *sb;
+#elif NICTOHOST_FSTAT
 	struct mtcp_stat *sb;
+#endif
 };
 
 struct mtcp_filename_stat
@@ -40,7 +45,11 @@ struct mtcp_filename_stat
 	char offload_fn[OFFLOAD_NAME_LIMIT];
 	uint64_t file_len;
 #if WHOLE_FSTAT
+#if NO_FS_PERFTEST | INDEPENDENT_FSTAT
+	struct stat *sb;
+#elif NICTOHOST_FSTAT
 	struct mtcp_stat *sb;
+#endif
 #endif
 };
 

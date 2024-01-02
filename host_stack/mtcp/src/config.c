@@ -26,7 +26,7 @@
 #define ALL_STRING 				"all"
 
 static const char *route_file = 		"config/route.conf";
-static const char *arp_file = 			"config/arp.conf";
+static const char *arp_file = 			"/home/taehyun/IO-TCP/host_stack/config/arp.conf";
 struct mtcp_manager *g_mtcp[MAX_CPUS] = 	{NULL};
 struct mtcp_config CONFIG = {
 	/* set default configuration */
@@ -561,6 +561,7 @@ ParseConfiguration(char *line)
 	char *saveptr;
 
 	strncpy(optstr, line, MAX_OPTLINE_LEN - 1);
+	optstr[MAX_OPTLINE_LEN - 1] = '\0';
 	saveptr = NULL;
 
 	p = strtok_r(optstr, " \t=", &saveptr);

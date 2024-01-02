@@ -1334,7 +1334,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	uint16_t check;
 	int ret;
 	int rc = -1;
-
+	
 	/* Check ip packet invalidation */	
 	if (ip_len < ((iph->ihl + tcph->doff) << 2))
 		return ERROR;
@@ -1517,8 +1517,15 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 	if (memcmp(p, "OPEN", 4) == 0) {
 #if WHOLE_FSTAT
 		/* TODO: Parse OPEN echo packet (either OPEN failed or succeeded) */
-		if (!sscanf(p + 4, "%d %d%n", &offload_fid, &offload_open_status, &stat_offset) == 1) {
-			TRACE_ERROR("Received weird open echo from NIC %s (%d)\n", p, payloadlen);
+		int ret = sscanf(p + 4, "%d %d%n", &offload_fid, &offload_open_status, &stat_offset);
+		if (ret != 2) {
+			TRACE_ERROR("Received weird open echo from NIC %d %s (%d)\n", ret, p, payloadlen);
+			return FALSE;
+		}
+		if (offload_open_status == 0) {
+			TRACE_ERROR("Failed to open file at NIC (fid:%d)\n", offload_fid);
+			errno = ENOENT;
+			RaiseOffloadOpenEvent(mtcp, cur_stream);
 			return FALSE;
 		}
 		if (payloadlen != 5 + stat_offset + sizeof(struct mtcp_stat)) {
@@ -1527,15 +1534,11 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 		}
 		// TRACE_ERROR("Received correct open echo from NIC %s (%d, %d, %d)\n", p, stat_offset, payloadlen, (int)sizeof(struct mtcp_stat));
 #else
-		if (!sscanf(p + 4, "%d %d %d%n", &offload_fid, &offload_open_status, &offload_fsize, &stat_offset) == 1) {
+		if (!(sscanf(p + 4, "%d %d %d%n", &offload_fid, &offload_open_status, &offload_fsize, &stat_offset) == 3)) {
 			TRACE_ERROR("Received weird open echo from NIC %s (%d)\n", p, payloadlen);
 			return FALSE;
 		}
 #endif
-		if (offload_open_status != 1) {
-			TRACE_ERROR("Failed to open file at NIC (fid:%d)\n", offload_fid);
-			return FALSE;
-		}
 		ov = NULL;
 		SBUF_LOCK(&cur_stream->sndvar->write_lock);
 		TAILQ_FOREACH(_o, &cur_stream->sndvar->offload_vars_list, offload_vars_link) {
@@ -1544,8 +1547,8 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 				break;
 			}
 		}
-#if WHOLE_FSTAT
 		mfs = (struct mtcp_filename_stat *)malloc(sizeof(struct mtcp_filename_stat));
+#if WHOLE_FSTAT
 		ov->sb = (struct mtcp_stat *)malloc(sizeof(struct mtcp_stat));	
 		memcpy(ov->sb, p + 5 + stat_offset, sizeof(struct mtcp_stat));
 		offload_fsize = ov->sb->st_size;
@@ -1553,7 +1556,8 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 		if (mfs->sb->st_size == 0)
 			fprintf(stderr, "[%d] ProccessOffloadEchoPacket(%s), mfs->sb->st_size:%ld \n", __LINE__, ov->offload_fn, mfs->sb->st_size);
 #else
-		ov->sb->st_size = (off_t)offload_fsize;
+		// ov->sb = (struct stat *)malloc(sizeof(struct stat));	
+		offload_fsize = (int)ov->sb->st_size;
 #endif
 		ov->file_len = (uint64_t)offload_fsize;
 		SBUF_UNLOCK(&cur_stream->sndvar->write_lock);
@@ -1582,7 +1586,7 @@ ProccessOffloadEchoPacket(mtcp_manager_t mtcp,
 				cur_ts, cur_stream->sndvar->rto, cur_stream->sndvar->ts_rto);
 		AddtoRTOList(mtcp, cur_stream);
 
-		if (!sscanf(p + 4, "%d", &echo_bytes) == 1) {
+		if (!(sscanf(p + 4, "%d", &echo_bytes) == 1)) {
 			TRACE_ERROR("Broken echo payload? %s (%d)\n", p, payloadlen);
 			return FALSE;
 		}

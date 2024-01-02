@@ -1814,12 +1814,20 @@ mtcp_offload_open(mctx_t mctx, int sockid, const char *file_name)
 #endif
 
 	offload_vars = (struct offload_vars *) MPAllocateChunk(mtcp->ov_pool);
-	
 	assert(offload_vars);
 	if (!offload_vars) {
 		TRACE_ERROR("Cannot retrieve memory for offload vars");
 		exit(-1);
 	}
+	
+#if NO_FS_PERFTEST | INDEPENDENT_FSTAT
+#elif NICTOHOST_FSTAT
+	offload_vars->sb = (struct mtcp_stat *)malloc(sizeof(struct mtcp_stat));	
+	if (offload_vars->sb == NULL) {
+		TRACE_ERROR("Cannot retrieve memory for offload vars -> mtcp_stat");
+		exit(-1);
+	}
+#endif
 
 	memset(offload_vars, 0, sizeof(struct offload_vars));
 
@@ -2198,8 +2206,10 @@ mtcp_offload_fstat(mctx_t mctx, const int sockid, const int offload_fid,  struct
 		}
 		stat_to_mtcpstat(*pp_mtcp_stat, &_stat);
 		ret = 0;
-	} else {
+	} else {		
+#if NICTOHOST_FSTAT
 		*pp_mtcp_stat = offload_vars->sb;
+#endif
 		ret = 0;
 	}
 	
@@ -2241,8 +2251,10 @@ mtcp_offload_stat(mctx_t mctx, const char *file_name, struct mtcp_stat** pp_mtcp
 		if ((*pp_mtcp_stat)->st_size == 0)
 			fprintf(stderr, "[%d] mtcp_offload_stat(%s), mtcp_stat.st_size:%ld filelen:%ld \n", __LINE__, file_name, (*pp_mtcp_stat)->st_size, _mfs->file_len);
 	} else {
-		// TRACE_ERROR("mtcp_offload_stat(%s) succeeded.\n", file_name);		
+		// TRACE_ERROR("mtcp_offload_stat(%s) succeeded.\n", file_name);
+#if NICTOHOST_FSTAT
 		*pp_mtcp_stat = _mfs->sb;
+#endif
 		ret = 0;
 		if ((*pp_mtcp_stat)->st_size == 0)
 			fprintf(stderr, "[%d] mtcp_offload_stat(%s), mtcp_stat.st_size:%ld filelen:%ld \n", __LINE__, file_name, (*pp_mtcp_stat)->st_size, _mfs->file_len);

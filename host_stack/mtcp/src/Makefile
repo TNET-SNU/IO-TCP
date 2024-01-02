@@ -3,14 +3,14 @@
 .PHONY: clean libccp
 
 ### TARGET ###
-PS=0
+PS=
 DPDK=1
-ENFORCE_RX_IDLE=0
-NETMAP=0
-ONVM=0
-LRO=0
+ENFORCE_RX_IDLE=@ENFORCE_RX_IDLE@
+NETMAP=
+ONVM=
+LRO=@LRO@
 CCP=
-HWCSUM=1
+HWCSUM=
 MTCP_LIB_DIR=../lib
 MTCP_LIB=libmtcp.a
 MTCP_HDR_DIR=../include
@@ -98,10 +98,9 @@ INC += -I$(PS_DIR)/include
 
 # CFLAGS for DPDK-related compilation
 ifeq ($(DPDK), 1)
-include $(RTE_SDK)/mk/rte.vars.mk
-CFLAGS+=-g -O2
+CFLAGS+=-g -O2 -include rte_config.h -march=native -I/usr/local/include -I/usr/include/libnl3
 ifeq ($(ENFORCE_RX_IDLE), 1)
-INC += -DENFORCE_RX_IDLE -DRX_IDLE_THRESH=0
+INC += -DENFORCE_RX_IDLE -DRX_IDLE_THRESH=@RX_IDLE_THRESH@
 endif
 else
 INC += -DDISABLE_DPDK

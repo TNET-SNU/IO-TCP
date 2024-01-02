@@ -192,13 +192,13 @@ IPOffloadOutput(struct mtcp_manager *mtcp, tcp_stream *stream, uint16_t tcplen)
 
 	/* HADDR of SmartNIC on separated mode */
 	/* TODO: Allow users to input address */
-	haddr[0] = 0x0c;
-	haddr[1] = 0x42;
-	haddr[2] = 0xa1;
-	haddr[3] = 0xca;
-	haddr[4] = 0xe8;
-	haddr[5] = 0x89;
-	
+	haddr[0] = 0x10;
+	haddr[1] = 0x70;
+	haddr[2] = 0xfd;
+	haddr[3] = 0x86;
+	haddr[4] = 0x5c;
+	haddr[5] = 0xee;
+
 	iph = (struct iphdr *)EthernetOutput(mtcp, ETH_P_IP, 
 			stream->sndvar->nif_out, haddr, tcplen + IP_HEADER_LEN);
 	if (!iph) {

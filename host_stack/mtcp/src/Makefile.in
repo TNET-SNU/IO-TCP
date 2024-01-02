@@ -98,7 +98,6 @@ INC += -I$(PS_DIR)/include
 
 # CFLAGS for DPDK-related compilation
 ifeq ($(DPDK), 1)
-include $(RTE_SDK)/mk/rte.vars.mk
 CFLAGS+=@CFLAGS@
 ifeq ($(ENFORCE_RX_IDLE), 1)
 INC += -DENFORCE_RX_IDLE -DRX_IDLE_THRESH=@RX_IDLE_THRESH@
