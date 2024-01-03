@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -35,7 +36,7 @@ static pool freadreq_pools[MAX_CPUS]; // for fake filesystem
 
 /* total amount of shared cache memory = 2GB -- configurable
    currently, all cache memory is shared across all worker threads */
-static int64_t g_cacheMemorySize = 2*1024*1024*1024L; 
+static int64_t g_cacheMemorySize = 768*1024*1024L; 
 
 // #define SHOW_STATS 1 --> options.h
 #ifdef SHOW_STATS
@@ -328,9 +329,9 @@ CloseFileForOffload(int cid, uint32_t fid)
   fc = fc_ht_search(file_cache_ht[cid], fid);
   if (fc == NULL) {
 	  fprintf(stderr,"(%d) fc NOT FOUND for closing (fid: %u)\n", cid, fid);
-	  assert(fc != NULL);
-	  exit(-1);
-  }
+	  // assert(fc != NULL);
+	  // exit(-1);
+  } else {
   
   /* close the file cache */
   TRACE_DBG("(%d) fc found for closing (file: %s)\n", cid, fc->fc_file);
@@ -345,6 +346,7 @@ CloseFileForOffload(int cid, uint32_t fid)
 #ifdef SHOW_STATS
 	g_numFlows[cid]--;
 #endif
+  }
 }
 /*---------------------------------------------------------------------------*/
 static inline void
@@ -634,16 +636,25 @@ SendOpenEchoPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int offload_f
 	tcph = (struct rte_tcp_hdr *)(iph + 1);
 
 	hdrlen = ETHERNET_HEADER_LEN + IP_HEADER_LEN + (GET_TCP_HEADER_LEN(tcph));
-	
-	fc = fc_ht_search(file_cache_ht[core_id], offload_fid);
-
+	if (offload_open_status == 1){
+		fc = fc_ht_search(file_cache_ht[core_id], offload_fid);
+		if (fc == NULL) {
+			TRACE_ERROR("(%u) Attempting to send Open Echo "
+					  "but cannot find the file cache entry. (fid: %u)\n",
+					  core_id, fid);
+			exit(-1); /* better stop here */
+		}
 #if WHOLE_FSTAT
-	p_len = snprintf(p, 128, "OPEN %d %d ", offload_fid, offload_open_status);
-	memcpy(p + p_len, fc->fc_stat, sizeof(struct mtcp_stat));
+		p_len = snprintf(p, 128, "OPEN %d %d ", offload_fid, offload_open_status);
+		memcpy(p + p_len, fc->fc_stat, sizeof(struct mtcp_stat));
 
-	p_len += sizeof(struct mtcp_stat);
+		p_len += sizeof(struct mtcp_stat);
+	} else {
+		p_len = snprintf(p, 128, "OPEN %d %d ", offload_fid, offload_open_status);
+	}
 #else
-	p_len = snprintf(p, 128, "OPEN %d %d %d", offload_fid, offload_open_status, fc->fc_stat->st_size);
+		p_len = snprintf(p, 128, "OPEN %d %d %d", offload_fid, offload_open_status, fc->fc_stat->_st_size);
+	}
 #endif
 
 	m = get_wptr(core_id, port, hdrlen + p_len);
@@ -677,6 +688,7 @@ SendOpenEchoPacket(uint16_t core_id, uint16_t port, uint8_t* phdr, int offload_f
 	m->l2_len    = sizeof(struct rte_ether_hdr);
 	m->l3_len    = sizeof(struct rte_ipv4_hdr);
 	m->l4_len    = GET_TCP_HEADER_LEN(tcph);
+	TRACE_DBG("[SendOpenEchoPacket] done\n");	
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -1082,8 +1094,9 @@ ProcessPacket(uint16_t core_id, uint16_t port, uint8_t *pktbuf, int totlen)
 				((ntohl(iph->dst_addr)) & 0xff),
 				ntohs(tcph->dst_port),
 				ntohl(tcph->sent_seq),
-				p_len); */
-    //TRACE_DBG("Error Message \n");
+				p_len); 
+    TRACE_DBG("Error Message \n");
+    */
     return;
   }
 

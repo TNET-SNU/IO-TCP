@@ -69,6 +69,7 @@ fc_ht_insert(struct fc_hashtable *ht, struct file_cache *fc)
 
   TRACE_DBG("Insert on index: %d\n", idx);
   TAILQ_INSERT_TAIL(&ht->ht_table[idx], fc, file_cache_link);
+  TRACE_DBG("Insert on index: %d done\n", idx);
 }
 /*-----------------------------------------------------------------------*/
 void
@@ -86,10 +87,14 @@ fc_ht_search(struct fc_hashtable *ht, uint32_t fid)
   struct file_cache *walk;
   fc_hash_bucket_head *head;
   
+  TRACE_DBG("Search on index: %d\n", fc_calculate_hash(fid));
   head = &ht->ht_table[fc_calculate_hash(fid)];
   TAILQ_FOREACH(walk, head, file_cache_link) {
-	  if (walk->fc_fid == fid)
+	  if (walk->fc_fid == fid) {
+		TRACE_DBG("[fc_ht_search] success for index: %d\n",fid);
 		  return walk;
+	  }
   }
+  TRACE_DBG("[fc_ht_search] failed\n");
   return NULL;
 }

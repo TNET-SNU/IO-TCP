@@ -125,9 +125,36 @@ AllocateCacheMemory(int64_t size, int ncores)
 	/* align the size to multiples of CACHEBLKSIZE */
 	/* fbman.fm_startPtr, */
 	size -= CACHEBLKOFF(size);
+	fprintf(stderr,"memzone_reserve_aligned 1\n");
 	mz = rte_memzone_reserve_aligned("Cache Memory", size, SOCKET_ID_ANY, RTE_MEMZONE_IOVA_CONTIG, getpagesize());
+	fprintf(stderr,"memzone_reserve_aligned 2\n");
 	if (mz == NULL) {
-		printf("Cannot allocate memzone");
+	// The function failed; examine rte_errno to find out why
+		int err = rte_errno;
+		printf("Function failed with error code: %d\n", err);
+		// You can then handle the error accordingly, perhaps with a switch statement
+		switch (err) {
+			case ENOSPC:
+				printf("No more room in the configuration.\n");
+				break;
+        case EEXIST:
+            printf("A memzone with the given name already exists.\n");
+            break;
+        case EINVAL:
+            printf("Invalid parameter, such as alignment not being a power of two, or requested size too big, etc.\n");
+            break;
+        case ENOMEM:
+            printf("Not enough memory to fulfill the request.\n");
+            break;
+        // Add more cases as necessary for different error codes
+        default:
+            printf("An unrecognized error occurred.\n");
+    }
+} else {
+		printf("Allocated memzone %ld, %d\n",size, getpagesize());
+}
+	if (mz == NULL) {
+		printf("Cannot allocate memzone %ld, %d",size, getpagesize());
 		exit(-1);
 	}
 

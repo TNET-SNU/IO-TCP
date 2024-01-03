@@ -1,10 +1,11 @@
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/types.h>          
 #include <sys/socket.h>
 #include <pthread.h>
 #include <errno.h>
 #include <sys/uio.h>             /* for preadv() */
-// #include <sched.h>		 /* for sched_setaffinity() */
+#include <sched.h>		 /* for sched_setaffinity() */
 
 #include "diskslave.h"
 #include "offload_write.h"

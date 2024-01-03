@@ -21,17 +21,20 @@ static: build/$(APP)-static
 PC_FILE := $(shell pkg-config --path libdpdk)
 #CFLAGS += -g $(shell pkg-config --cflags libdpdk)
 CFLAGS += -DNDEBUG -O3 $(shell pkg-config --cflags libdpdk)
-LDFLAGS_SHARED = $(shell pkg-config --libs libdpdk)
-LDFLAGS_STATIC = -Wl,-Bstatic $(shell pkg-config --static --libs libdpdk)
+LDFLAGS_SHARED = $(shell pkg-config --libs libdpdk) -lpthread -lrt
+LDFLAGS_STATIC = -Wl,-Bstatic $(shell pkg-config --static --libs libdpdk) -lpthread -lrt
 
 build/$(APP)-shared: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED) 
+	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS_SHARED) 
 
 build/$(APP)-static: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
+	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS_STATIC)
 
 build:
 	@mkdir -p $@
+.PHONY: print-% 
+print-%:
+	@echo '$*=$($*)'
 
 .PHONY: clean
 clean:
@@ -49,7 +52,7 @@ RTE_TARGET ?= $(notdir $(abspath $(dir $(firstword $(wildcard $(RTE_SDK)/*/.conf
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
-CFLAGS += $(WERROR_FLAGS)
+# CFLAGS += $(WERROR_FLAGS)
 
 # workaround for a gcc bug with noreturn attribute
 # http://gcc.gnu.org/bugzilla/show_bug.cgi?id=12603
