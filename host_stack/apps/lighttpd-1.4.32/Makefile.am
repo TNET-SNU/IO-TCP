@@ -1,4 +1,4 @@
-SUBDIRS=src doc tests
+SUBDIRS=src doc
 
 EXTRA_DIST=autogen.sh SConstruct
 

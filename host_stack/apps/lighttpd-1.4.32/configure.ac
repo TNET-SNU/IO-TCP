@@ -742,13 +742,6 @@ AC_CONFIG_FILES([Makefile src/Makefile
 		 doc/systemd/Makefile \
 		 doc/outdated/Makefile \
 		 doc/Makefile \
-		 tests/Makefile \
-		 tests/docroot/Makefile \
-		 tests/docroot/123/Makefile \
-		 tests/docroot/www/Makefile \
-		 tests/docroot/www/go/Makefile \
-		 tests/docroot/www/indexfile/Makefile \
-		 tests/docroot/www/expire/Makefile \
 		 distribute.sh])
 AC_OUTPUT
 
