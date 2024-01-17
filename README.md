@@ -3,23 +3,13 @@
 
 ## Preliminaries
 
-### DPDK
-* host-side
-  - Download DPDK-20.05 (https://github.com/DPDK/dpdk.git)
-    - mtcp doesn't support later version of DPDK where target specified build is depreciated.
+### DPDK 
+- Install DPDK on both the host and the NIC (https://github.com/DPDK/dpdk.git)
+  - IO-TCP는 Pkg-config를 통해 DPDK 라이브러리를 link한다 (20.05 이후 버전 사용을 추천함)
+  - Host
     - Please check that CONFIG_RTE_LIBRTE_MLX5_PMD option has been enabled in dpdk/config/common_base which is disabled by default.
-  - Run a script for environment setup
-  ``` 
-  cd ./IO-TCP/host_stack
-  ./setup_mtcp_dpdk_env.sh [dpdk path] (i.e. 		/home/username/dpdk/)
-  # select a proper target. (i.e. x86_64-native-linuxapp-gcc)
-  ```
-* NIC-side
-  - Download DPDK-20.05 (https://github.com/DPDK/dpdk.git)
-  - Build DPDK-20.05 with `usertools/dpdk-setup.sh`
-    - In DPDK setup prompt, select a proper target. (i.e. arm64-bluefield-linuxapp-gcc)
-  - OS installation on NIC using bfb images may already have DPDK installed, which cannot be reinstalled.
-
+  - NIC
+    - OS installation on NIC using bfb images may already have DPDK installed, which cannot be reinstalled.
 ### Mellanox OFED
 - Install Mellanox OFED on both the host and the NIC
   - Host
@@ -52,14 +42,8 @@
   - Configure 
     ```
     cd host_stack
-    autoconf
-    ./configure --with-dpdk-lib=[DPDK target path] (i.e. /home/username/dpdk/x86_64-native-linuxapp-gcc/)
-    ```
-    - Do autoreconf -ivf, if the configure failed.
-  - set RTE_SDK and RTE_TARGET
-    ```
-    export RTE_SDK=[DPDK installation path] (i.e. /home/username/dpdk-20.05)
-    export RTE_TARGET=[DPDK target environment] (i.e. x86_64-native-linuxapp-gcc)
+    autoreconf -ivf
+    ./configure --with-dpdk-lib
     ```
 - Edit hard-coded MAC address
   - In host_stack/mtcp/src/ip_out.c:195~200, Hard-coded SmartNIC MAC address needs to be changed.
@@ -72,12 +56,7 @@
 ### NIC side
 - [`nic_stack/`](nic_stack/): NIC stack source code of IO-TCP
   - Set DPDK hugepages. If necessary, set the page size to 1GB instead of the default of 2MB.
-  - set RTE_SDK and RTE_TARGET
-    ```
-    export RTE_SDK=[DPDK installation path] (i.e. /home/username/dpdk-20.05)
-    export RTE_TARGET=[DPDK target environment] (i.e. arm64-bluefield-linuxapp-gcc)
-    ```
-  - Build your project
+  - Build IO-TCP nic stack
     ```
     cd nic_stack
     make -j
@@ -95,7 +74,7 @@
       ```
       cd ./apps/lighttpd-1.4.32/
       autoconf
-      ./configure --without-bzip2 CFLAGS="-g -O3" --with-libmtcp=[mtcp path] (i.e. /home/username/IO-TCP/mtcp_accelstorage/mtcp/) --with-libdpdk=[dpdk path] (i.e. /home/username/dpdk/x86_64-native-linuxapp-gcc/) --no-create --no-recursion
+      ./configure --without-bzip2 CFLAGS="-g -O3" --with-libmtcp=[mtcp path] (i.e. /home/username/IO-TCP/host_stack/mtcp/) --with-libdpdk --no-create --no-recursion
       make all -j
       cd ./src
       ```
