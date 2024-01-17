@@ -5,7 +5,7 @@
 
 ### DPDK 
 - Install DPDK on both the host and the NIC (https://github.com/DPDK/dpdk.git)
-  - IO-TCP는 Pkg-config를 통해 DPDK 라이브러리를 link한다 (20.05 이후 버전 사용을 추천함)
+  - IO-TCP links the DPDK library using pkg-config
   - Host
     - Please check that CONFIG_RTE_LIBRTE_MLX5_PMD option has been enabled in dpdk/config/common_base which is disabled by default.
   - NIC
